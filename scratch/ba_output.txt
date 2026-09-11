@@ -1,0 +1,470 @@
+=== TOP CARDS ===
+{
+  total: 2509,
+  qualifiedCount: 1007,
+  qualRate: '40.1%',
+  orderDoneCount: 59,
+  closeRateOfQualified: '5.9%',
+  totalRevenue: 3401247,
+  atRisk: 2362,
+  qualifiedUnassigned: 0
+}
+=== SOURCE PERFORMANCE ===
+[
+  { source: 'Facebook', total: 1454, qualified: 327, rate: '22%' },
+  { source: 'Instagram', total: 915, qualified: 541, rate: '59%' },
+  { source: 'Data Import', total: 109, qualified: 109, rate: '100%' },
+  { source: 'Youtube', total: 23, qualified: 22, rate: '96%' },
+  { source: 'Manual', total: 6, qualified: 6, rate: '100%' },
+  { source: 'Direct', total: 1, qualified: 1, rate: '100%' },
+  { source: 'JustDial', total: 1, qualified: 1, rate: '100%' }
+]
+=== TOP STATES ===
+[
+  [ 'Uttar Pradesh', 229 ],
+  [ 'Madhya Pradesh', 67 ],
+  [ 'Haryana', 66 ],
+  [ 'Rajasthan', 64 ],
+  [ 'Bihar', 63 ],
+  [ 'Delhi', 60 ],
+  [ 'Maharashtra', 36 ],
+  [ 'Jammu & Kashmir', 35 ],
+  [ 'Punjab', 29 ],
+  [ 'Uttarakhand', 21 ]
+]
+=== PIPELINE HEALTH ===
+{
+  fresh: 36,
+  inProgress: 1675,
+  qualifiedPendingSales: 0,
+  positiveEngagement: 720,
+  orderDone: 59,
+  lost: 19
+}
+=== TOP LDRs by qualified ===
+[
+  { name: 'Neelam', assigned: 1497, qualified: 628, rate: '42%' },
+  {
+    name: 'Shikha Rajpal LDR',
+    assigned: 411,
+    qualified: 113,
+    rate: '27%'
+  },
+  { name: 'Mamta', assigned: 334, qualified: 91, rate: '27%' },
+  {
+    name: 'Akshay Sharma LDR',
+    assigned: 118,
+    qualified: 29,
+    rate: '25%'
+  }
+]
+=== TOP SALES by orderDone ===
+[
+  {
+    name: 'Mamta Sales',
+    assigned: 36,
+    orderDone: 19,
+    closeRate: '53%'
+  },
+  { name: 'Pradeep', assigned: 264, orderDone: 12, closeRate: '5%' },
+  { name: 'Joginder', assigned: 126, orderDone: 7, closeRate: '6%' },
+  {
+    name: 'Shikha Rajpal Sales',
+    assigned: 52,
+    orderDone: 4,
+    closeRate: '8%'
+  },
+  { name: 'Amit', assigned: 5, orderDone: 4, closeRate: '80%' },
+  {
+    name: 'Akshay Sharma',
+    assigned: 59,
+    orderDone: 3,
+    closeRate: '5%'
+  },
+  { name: 'Sonu 1st', assigned: 12, orderDone: 3, closeRate: '25%' },
+  { name: 'Naveen', assigned: 50, orderDone: 3, closeRate: '6%' },
+  { name: 'Satish', assigned: 111, orderDone: 2, closeRate: '2%' },
+  {
+    name: 'Manmeet Singh',
+    assigned: 106,
+    orderDone: 2,
+    closeRate: '2%'
+  },
+  { name: 'Sumit Rathor', assigned: 40, orderDone: 0, closeRate: '0%' },
+  { name: 'Sonu 2nd', assigned: 47, orderDone: 0, closeRate: '0%' },
+  { name: 'Johny', assigned: 66, orderDone: 0, closeRate: '0%' },
+  { name: 'Harish', assigned: 13, orderDone: 0, closeRate: '0%' },
+  {
+    name: 'Abhishek Sharma',
+    assigned: 11,
+    orderDone: 0,
+    closeRate: '0%'
+  },
+  {
+    name: 'Shikha Rajpal LDR',
+    assigned: 1,
+    orderDone: 0,
+    closeRate: '0%'
+  },
+  {
+    name: 'Akshay Sharma LDR',
+    assigned: 1,
+    orderDone: 0,
+    closeRate: '0%'
+  },
+  {
+    name: 'BHUPENDRA SINGH',
+    assigned: 4,
+    orderDone: 0,
+    closeRate: '0%'
+  },
+  { name: 'rajeev', assigned: 3, orderDone: 0, closeRate: '0%' }
+]
+=== FULL LDR -> SALES DOWNSTREAM (for the drill-down table) ===
+[
+  {
+    "uid": "iohqRLcFHpboEJfOw88NI7Ao1xm1",
+    "name": "Neelam",
+    "assigned": 1497,
+    "qualified": 628,
+    "qualifyRate": 42,
+    "sentTo": [
+      {
+        "name": "Pradeep",
+        "sent": 201,
+        "orderDone": 10,
+        "lost": 0,
+        "active": 191
+      },
+      {
+        "name": "Joginder",
+        "sent": 102,
+        "orderDone": 7,
+        "lost": 1,
+        "active": 94
+      },
+      {
+        "name": "Satish",
+        "sent": 76,
+        "orderDone": 2,
+        "lost": 1,
+        "active": 73
+      },
+      {
+        "name": "Manmeet Singh",
+        "sent": 61,
+        "orderDone": 2,
+        "lost": 2,
+        "active": 57
+      },
+      {
+        "name": "Johny",
+        "sent": 51,
+        "orderDone": 0,
+        "lost": 1,
+        "active": 50
+      },
+      {
+        "name": "Sonu 2nd",
+        "sent": 34,
+        "orderDone": 0,
+        "lost": 0,
+        "active": 34
+      },
+      {
+        "name": "Shikha Rajpal Sales",
+        "sent": 24,
+        "orderDone": 3,
+        "lost": 2,
+        "active": 19
+      },
+      {
+        "name": "Naveen",
+        "sent": 24,
+        "orderDone": 3,
+        "lost": 0,
+        "active": 21
+      },
+      {
+        "name": "Sumit Rathor",
+        "sent": 19,
+        "orderDone": 0,
+        "lost": 0,
+        "active": 19
+      },
+      {
+        "name": "Mamta Sales",
+        "sent": 8,
+        "orderDone": 1,
+        "lost": 0,
+        "active": 7
+      },
+      {
+        "name": "Harish",
+        "sent": 6,
+        "orderDone": 0,
+        "lost": 0,
+        "active": 6
+      },
+      {
+        "name": "Sonu 1st",
+        "sent": 6,
+        "orderDone": 0,
+        "lost": 0,
+        "active": 6
+      },
+      {
+        "name": "Akshay Sharma",
+        "sent": 5,
+        "orderDone": 0,
+        "lost": 0,
+        "active": 5
+      },
+      {
+        "name": "Abhishek Sharma",
+        "sent": 4,
+        "orderDone": 0,
+        "lost": 0,
+        "active": 4
+      },
+      {
+        "name": "BHUPENDRA SINGH",
+        "sent": 4,
+        "orderDone": 0,
+        "lost": 0,
+        "active": 4
+      },
+      {
+        "name": "rajeev",
+        "sent": 3,
+        "orderDone": 0,
+        "lost": 0,
+        "active": 3
+      }
+    ],
+    "downstreamOrders": 28,
+    "downstreamSent": 628
+  },
+  {
+    "uid": "MSCCEimz49ahGixeTJX5Oh9Eeez2",
+    "name": "Shikha Rajpal LDR",
+    "assigned": 411,
+    "qualified": 113,
+    "qualifyRate": 27,
+    "sentTo": [
+      {
+        "name": "Shikha Rajpal Sales",
+        "sent": 28,
+        "orderDone": 1,
+        "lost": 1,
+        "active": 26
+      },
+      {
+        "name": "Pradeep",
+        "sent": 16,
+        "orderDone": 0,
+        "lost": 1,
+        "active": 15
+      },
+      {
+        "name": "Satish",
+        "sent": 13,
+        "orderDone": 0,
+        "lost": 0,
+        "active": 13
+      },
+      {
+        "name": "Johny",
+        "sent": 8,
+        "orderDone": 0,
+        "lost": 0,
+        "active": 8
+      },
+      {
+        "name": "Joginder",
+        "sent": 8,
+        "orderDone": 0,
+        "lost": 1,
+        "active": 7
+      },
+      {
+        "name": "Manmeet Singh",
+        "sent": 8,
+        "orderDone": 0,
+        "lost": 1,
+        "active": 7
+      },
+      {
+        "name": "Sonu 2nd",
+        "sent": 7,
+        "orderDone": 0,
+        "lost": 0,
+        "active": 7
+      },
+      {
+        "name": "Sumit Rathor",
+        "sent": 6,
+        "orderDone": 0,
+        "lost": 0,
+        "active": 6
+      },
+      {
+        "name": "Harish",
+        "sent": 6,
+        "orderDone": 0,
+        "lost": 0,
+        "active": 6
+      },
+      {
+        "name": "Abhishek Sharma",
+        "sent": 5,
+        "orderDone": 0,
+        "lost": 0,
+        "active": 5
+      },
+      {
+        "name": "Naveen",
+        "sent": 3,
+        "orderDone": 0,
+        "lost": 0,
+        "active": 3
+      },
+      {
+        "name": "Sonu 1st",
+        "sent": 2,
+        "orderDone": 0,
+        "lost": 0,
+        "active": 2
+      },
+      {
+        "name": "Shikha Rajpal LDR",
+        "sent": 1,
+        "orderDone": 0,
+        "lost": 0,
+        "active": 1
+      },
+      {
+        "name": "Mamta Sales",
+        "sent": 1,
+        "orderDone": 0,
+        "lost": 0,
+        "active": 1
+      },
+      {
+        "name": "Akshay Sharma",
+        "sent": 1,
+        "orderDone": 0,
+        "lost": 0,
+        "active": 1
+      }
+    ],
+    "downstreamOrders": 1,
+    "downstreamSent": 113
+  },
+  {
+    "uid": "5i38P8ESNkcjhYvpR9WKz0swPnt1",
+    "name": "Mamta",
+    "assigned": 334,
+    "qualified": 91,
+    "qualifyRate": 27,
+    "sentTo": [
+      {
+        "name": "Mamta Sales",
+        "sent": 27,
+        "orderDone": 18,
+        "lost": 3,
+        "active": 6
+      },
+      {
+        "name": "Pradeep",
+        "sent": 22,
+        "orderDone": 2,
+        "lost": 0,
+        "active": 20
+      },
+      {
+        "name": "Sumit Rathor",
+        "sent": 15,
+        "orderDone": 0,
+        "lost": 0,
+        "active": 15
+      },
+      {
+        "name": "Joginder",
+        "sent": 8,
+        "orderDone": 0,
+        "lost": 0,
+        "active": 8
+      },
+      {
+        "name": "Johny",
+        "sent": 7,
+        "orderDone": 0,
+        "lost": 0,
+        "active": 7
+      },
+      {
+        "name": "Manmeet Singh",
+        "sent": 4,
+        "orderDone": 0,
+        "lost": 0,
+        "active": 4
+      },
+      {
+        "name": "Satish",
+        "sent": 4,
+        "orderDone": 0,
+        "lost": 0,
+        "active": 4
+      },
+      {
+        "name": "Sonu 2nd",
+        "sent": 2,
+        "orderDone": 0,
+        "lost": 0,
+        "active": 2
+      },
+      {
+        "name": "Naveen",
+        "sent": 1,
+        "orderDone": 0,
+        "lost": 0,
+        "active": 1
+      },
+      {
+        "name": "Harish",
+        "sent": 1,
+        "orderDone": 0,
+        "lost": 0,
+        "active": 1
+      }
+    ],
+    "downstreamOrders": 20,
+    "downstreamSent": 91
+  },
+  {
+    "uid": "h2GIb34pyhMo4rYOSQiwweePdyr2",
+    "name": "Akshay Sharma LDR",
+    "assigned": 118,
+    "qualified": 29,
+    "qualifyRate": 25,
+    "sentTo": [
+      {
+        "name": "Akshay Sharma",
+        "sent": 28,
+        "orderDone": 2,
+        "lost": 0,
+        "active": 26
+      },
+      {
+        "name": "Akshay Sharma LDR",
+        "sent": 1,
+        "orderDone": 0,
+        "lost": 0,
+        "active": 1
+      }
+    ],
+    "downstreamOrders": 2,
+    "downstreamSent": 29
+  }
+]

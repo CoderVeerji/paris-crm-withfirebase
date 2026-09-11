@@ -1,0 +1,14 @@
+node_modules/
+**/serviceAccountKey.json
+migration/csv-exports/
+migration/reports/
+migration/user-credentials.csv
+migration/export.json
+migration/*.json
+!migration/package.json
+!migration/package-lock.json
+.firebase/
+*.log
+.env
+.env.*
+dist/

@@ -1,0 +1,455 @@
+<!doctype html>
+<title>Business Intelligence Plan</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+
+  :root {
+    --ink: #001f3f; --azure: #0074d9; --green: #1a9c4e; --green-soft: #e7f6ec;
+    --amber: #f0a202; --red: #e0342b; --teal: #0d7d6f; --purple: #8e44ad;
+    --bg: #f2f5f9; --card: #ffffff; --card-2: #f7f9fc; --text: #1c2733; --muted: #6b7a8d; --line: #e6ebf1;
+    --shadow-sm: 0 1px 3px rgba(16,33,55,.06), 0 1px 2px rgba(16,33,55,.04);
+    --shadow: 0 4px 16px rgba(16,33,55,.08);
+    --radius: 16px; --radius-sm: 12px;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --ink: #6fa8dc; --azure: #4aa3ff; --green: #3ecb7e; --green-soft: #123322; --amber: #ffb648; --red: #ff6b62; --teal: #3fc7b6; --purple: #b57edc;
+      --bg: #0b1420; --card: #101c2c; --card-2: #16243696; --text: #e8eef6; --muted: #93a3b8; --line: #223349;
+      --shadow-sm: 0 1px 3px rgba(0,0,0,.3); --shadow: 0 4px 16px rgba(0,0,0,.35);
+    }
+  }
+  :root[data-theme="dark"] {
+    --ink: #6fa8dc; --azure: #4aa3ff; --green: #3ecb7e; --green-soft: #123322; --amber: #ffb648; --red: #ff6b62; --teal: #3fc7b6; --purple: #b57edc;
+    --bg: #0b1420; --card: #101c2c; --card-2: #16243696; --text: #e8eef6; --muted: #93a3b8; --line: #223349;
+    --shadow-sm: 0 1px 3px rgba(0,0,0,.3); --shadow: 0 4px 16px rgba(0,0,0,.35);
+  }
+
+  * { box-sizing: border-box; }
+  button { font: inherit; color: inherit; cursor: pointer; }
+  body { background: var(--bg); color: var(--text); font-family: 'Inter', -apple-system, 'Segoe UI', Roboto, sans-serif; }
+  h1,h2,h3,h4 { text-wrap: balance; font-weight: 700; color: var(--ink); }
+  .num { font-variant-numeric: tabular-nums; }
+  .wrap { max-width: 1220px; margin: 0 auto; padding: 26px 20px 90px; }
+
+  .topbar { display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; flex-wrap: wrap; margin-bottom: 6px; }
+  .brandline { display: flex; align-items: center; gap: 10px; }
+  .brandline .dot { width: 10px; height: 10px; border-radius: 50%; background: var(--azure); box-shadow: 0 0 0 4px color-mix(in srgb, var(--azure) 18%, transparent); }
+  .eyebrow { font-size: 12px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+  h1 { font-size: 25px; margin: 4px 0 6px; }
+  .lede { color: var(--muted); font-size: 14px; max-width: 70ch; line-height: 1.6; }
+  .plan-badge { display: inline-flex; align-items: center; gap: 6px; background: var(--amber); color: #23150a; font-weight: 700; font-size: 12px; padding: 6px 12px; border-radius: 999px; white-space: nowrap; }
+
+  .part-tabs { display: flex; gap: 8px; background: var(--card); border: 1px solid var(--line); border-radius: 999px; padding: 5px; margin: 20px 0 22px; width: fit-content; box-shadow: var(--shadow-sm); }
+  .part-tabs button { border: none; background: transparent; padding: 10px 24px; border-radius: 999px; font-size: 13.5px; font-weight: 700; color: var(--muted); }
+  .part-tabs button.on { background: linear-gradient(135deg, var(--ink), var(--azure)); color: #fff; box-shadow: var(--shadow-sm); }
+  .part { display: none; }
+  .part.on { display: block; }
+
+  .filterbar { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; background: var(--card); border: 1px solid var(--line); border-radius: var(--radius); padding: 14px 16px; margin-bottom: 22px; box-shadow: var(--shadow-sm); }
+  .fgroup { display: flex; flex-direction: column; gap: 5px; }
+  .fgroup label { font-size: 10.5px; font-weight: 700; text-transform: uppercase; letter-spacing: .05em; color: var(--muted); }
+  .fctl { border: 1.5px solid var(--line); background: var(--card-2); color: var(--text); font-size: 13px; font-weight: 600; padding: 8px 12px; border-radius: var(--radius-sm); font-family: inherit; min-width: 150px; }
+
+  section { margin: 30px 0; }
+  .sec-head { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; margin-bottom: 12px; flex-wrap: wrap; }
+  .sec-head h2 { font-size: 14.5px; text-transform: uppercase; letter-spacing: .04em; display: flex; align-items: center; gap: 8px; }
+  .sec-ic { display: inline-flex; align-items: center; justify-content: center; width: 24px; height: 24px; border-radius: 8px; background: linear-gradient(135deg, var(--ink), var(--azure)); color: #fff; font-size: 11px; box-shadow: 0 2px 6px color-mix(in srgb, var(--azure) 40%, transparent); }
+  .sec-note { font-size: 12px; color: var(--muted); }
+
+  .tile-grid { display: grid; grid-template-columns: repeat(6, 1fr); gap: 12px; }
+  .tile { background: var(--card); border: 1px solid var(--line); border-radius: var(--radius); padding: 15px 16px; box-shadow: var(--shadow-sm); position: relative; overflow: hidden; text-align: left; }
+  .tile-ic { width: 34px; height: 34px; border-radius: 10px; display: flex; align-items: center; justify-content: center; color: #fff; font-size: 14px; margin-bottom: 10px; }
+  .tile .v { font-size: 21px; font-weight: 800; color: var(--ink); }
+  .tile .l { font-size: 10.5px; color: var(--muted); font-weight: 700; margin-top: 3px; text-transform: uppercase; letter-spacing: .02em; }
+  .tile .sub { font-size: 10.5px; color: var(--muted); margin-top: 4px; }
+
+  .insights { display: flex; flex-direction: column; gap: 8px; }
+  .insight { display: flex; align-items: center; gap: 12px; padding: 12px 16px; border-radius: var(--radius-sm); font-size: 13px; line-height: 1.55; }
+  .insight.urgent { background: color-mix(in srgb, var(--red) 8%, var(--card)); border: 1px solid color-mix(in srgb, var(--red) 25%, var(--line)); }
+  .insight.warn { background: color-mix(in srgb, var(--amber) 10%, var(--card)); border: 1px solid color-mix(in srgb, var(--amber) 30%, var(--line)); }
+  .insight.smart { background: color-mix(in srgb, var(--azure) 7%, var(--card)); border: 1px solid color-mix(in srgb, var(--azure) 25%, var(--line)); }
+  .insight.good { background: var(--green-soft); border: 1px solid color-mix(in srgb, var(--green) 30%, var(--line)); }
+  .insight .ic { flex: none; width: 30px; height: 30px; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: #fff; font-size: 13px; }
+  .insight.urgent .ic { background: var(--red); } .insight.warn .ic { background: var(--amber); }
+  .insight.smart .ic { background: var(--azure); } .insight.good .ic { background: var(--green); }
+  .insight b { color: var(--text); }
+  .insight .link { flex: none; font-size: 12px; font-weight: 700; color: var(--azure); white-space: nowrap; }
+
+  .charts-2 { display: grid; grid-template-columns: 1.3fr 1fr; gap: 16px; }
+  .charts-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
+  .chart-card { background: var(--card); border: 1px solid var(--line); border-radius: var(--radius); box-shadow: var(--shadow-sm); padding: 16px 18px; }
+  .chart-card h4 { font-size: 13px; margin-bottom: 10px; display: flex; align-items: center; gap: 7px; }
+  .chart-card .hint { font-size: 10.5px; color: var(--muted); font-weight: 500; margin-left: auto; }
+  .chart-box { position: relative; min-height: 210px; }
+
+  .tablewrap { overflow-x: auto; border-radius: var(--radius); box-shadow: var(--shadow); }
+  table.dtable { border-collapse: collapse; width: 100%; min-width: 760px; background: var(--card); font-size: 13px; }
+  table.dtable thead th { background: var(--ink); color: #fff; font-weight: 700; padding: 13px 16px; text-align: right; white-space: nowrap; font-size: 11.5px; }
+  table.dtable thead th:first-child, table.dtable thead th.l { text-align: left; }
+  table.dtable td { padding: 12px 16px; text-align: right; border-bottom: 1px solid var(--line); vertical-align: middle; }
+  table.dtable td.l { text-align: left; }
+  table.dtable tr:last-child > td { border-bottom: none; }
+  table.dtable tbody tr.drow { cursor: pointer; }
+  table.dtable tbody tr.drow:hover td { background: var(--card-2); }
+  .rate-pill { display: inline-block; font-size: 11px; font-weight: 800; padding: 3px 10px; border-radius: 999px; }
+  .rate-pill.hi { background: color-mix(in srgb, var(--green) 15%, var(--card)); color: var(--green); }
+  .rate-pill.mid { background: color-mix(in srgb, var(--amber) 18%, var(--card)); color: var(--amber); }
+  .rate-pill.lo { background: color-mix(in srgb, var(--red) 14%, var(--card)); color: var(--red); }
+  .expand-caret { display: inline-block; transition: transform .2s ease; margin-right: 8px; color: var(--muted); }
+  .drow.open .expand-caret { transform: rotate(90deg); }
+  .subwrap { display: none; }
+  .subwrap.open { display: table-row; }
+  .subwrap td { padding: 0; background: var(--card-2); }
+  table.subtable { width: 100%; border-collapse: collapse; }
+  table.subtable th { background: color-mix(in srgb, var(--ink) 92%, var(--card)); color: #fff; font-size: 10.5px; padding: 9px 16px 9px 44px; text-align: right; }
+  table.subtable th:first-child { text-align: left; }
+  table.subtable td { padding: 9px 16px 9px 44px; text-align: right; font-size: 12px; border-bottom: 1px solid var(--line); }
+  table.subtable td:first-child { text-align: left; font-weight: 600; }
+  table.subtable tr:last-child td { border-bottom: none; }
+
+  .avatar { width: 28px; height: 28px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 800; color: #fff; flex: none; margin-right: 9px; vertical-align: middle; }
+  .nm-cell { display: flex; align-items: center; }
+
+  .analyst-note { background: color-mix(in srgb, var(--azure) 6%, var(--card)); border: 1px solid color-mix(in srgb, var(--azure) 25%, var(--line)); border-radius: var(--radius-sm); padding: 12px 15px; font-size: 12.5px; line-height: 1.65; margin-bottom: 14px; }
+  .analyst-note i { color: var(--azure); margin-right: 6px; }
+
+  .review { background: var(--card); border: 1px dashed color-mix(in srgb, var(--amber) 55%, var(--line)); border-radius: var(--radius); padding: 18px 20px; }
+  .review h2 { font-size: 15px; margin-bottom: 4px; }
+  .review ol { margin: 10px 0 0 20px; padding: 0; font-size: 13.5px; line-height: 1.85; }
+  .review .yes { color: var(--green); font-weight: 700; }
+  .data-note { font-size: 11.5px; color: var(--muted); margin-top: 16px; border-top: 1px solid var(--line); padding-top: 12px; }
+
+  @media (max-width: 980px) {
+    .tile-grid { grid-template-columns: repeat(3, 1fr); }
+    .charts-2, .charts-3 { grid-template-columns: 1fr; }
+  }
+  @media (max-width: 560px) {
+    .tile-grid { grid-template-columns: repeat(2, 1fr); }
+  }
+</style>
+
+<div class="wrap">
+  <div class="topbar">
+    <div>
+      <div class="brandline"><span class="dot"></span><span class="eyebrow">Paris CRM · Admin</span></div>
+      <h1>Business Intelligence Plan</h1>
+      <p class="lede">Aapke bheje reference screenshots (Business Analytics + MECA) dekhe, humara asli data analyse kiya, aur jahan zaroori laga wahan better banaya — sirf copy nahi kiya. Sab numbers neeche real Firestore data se hain.</p>
+    </div>
+    <span class="plan-badge">✎ Draft plan — approval se pehle</span>
+  </div>
+
+  <div class="part-tabs">
+    <button class="on" data-part="ba">Business Analytics</button>
+    <button data-part="meca">MECA</button>
+  </div>
+
+  <!-- ============================= BUSINESS ANALYTICS ============================= -->
+  <div class="part on" id="part-ba">
+
+    <div class="filterbar">
+      <div class="fgroup"><label>Date Range</label><select class="fctl" id="baRange"><option>All Time</option><option>This Month</option><option>Last 30 Days</option><option>Custom</option></select></div>
+      <div class="fgroup"><label>From Date</label><input class="fctl" type="date" style="min-width:130px;" /></div>
+      <div class="fgroup"><label>To Date</label><input class="fctl" type="date" style="min-width:130px;" /></div>
+    </div>
+
+    <section>
+      <div class="tile-grid">
+        <div class="tile"><div class="tile-ic" style="background:var(--ink);"><i class="fas fa-users"></i></div><div class="v num">2,509</div><div class="l">Total Leads</div></div>
+        <div class="tile"><div class="tile-ic" style="background:var(--azure);"><i class="fas fa-circle-check"></i></div><div class="v num">40.1%</div><div class="l">Qualification Rate</div><div class="sub">1,007 qualified</div></div>
+        <div class="tile"><div class="tile-ic" style="background:var(--green);"><i class="fas fa-trophy"></i></div><div class="v num">59</div><div class="l">Orders Won</div></div>
+        <div class="tile"><div class="tile-ic" style="background:var(--amber);"><i class="fas fa-percent"></i></div><div class="v num">5.9%</div><div class="l">Close Rate (of Qualified)</div></div>
+        <div class="tile"><div class="tile-ic" style="background:var(--green);"><i class="fas fa-indian-rupee-sign"></i></div><div class="v num">₹34,01,247</div><div class="l">Total Revenue</div></div>
+        <div class="tile"><div class="tile-ic" style="background:var(--red);"><i class="fas fa-triangle-exclamation"></i></div><div class="v num">2,362</div><div class="l">At-Risk (14+ Days Idle)</div><div class="sub" style="color:var(--red); font-weight:700;">94% of book!</div></div>
+      </div>
+    </section>
+
+    <section>
+      <div class="sec-head"><h2><span class="sec-ic"><i class="fas fa-lightbulb"></i></span>Auto Insights</h2><span class="sec-note">weak points + strong points, dono</span></div>
+      <p class="analyst-note"><i class="fas fa-magnifying-glass"></i> Aapki reference image sirf "weak points" dikhati thi. Humara data dekha to ek <b>positive insight bhi mila jo copy karne layak hai</b> (Mamta→Mamta Sales pairing), aur ek <b>chhupa hua pattern</b> jo raw "lowest qualify rate" se zyada useful hai — isliye 4 types add kiye: urgent (laal), warning (amber), smart-pattern (blue), aur good (green).</p>
+      <div class="insights">
+        <div class="insight urgent"><span class="ic"><i class="fas fa-fire"></i></span><span><b>Almost poora book (2,362 leads, 94%) 14+ din se untouched hai</b> — sirf 6% leads hi active follow-up mein hain. Ye ek chhota gap nahi, poore team ka backlog crisis hai.</span><span class="link">Leads Dekhein →</span></div>
+        <div class="insight warn"><span class="ic"><i class="fas fa-circle-exclamation"></i></span><span><b>"Facebook"</b> sabse bada source hai (1,454 leads, 58%) par sirf <b>22% qualify</b> hoti hai — "Instagram" (59%) ya "Data Import" (100%) se bahut kam. Budget yahi se sabse zyada leak ho raha hai.</span><span class="link">Leads Dekhein →</span></div>
+        <div class="insight warn"><span class="ic"><i class="fas fa-user-clock"></i></span><span>Sales mein <b>"Johny"</b> ko 66 leads mile, <b>0 order</b> abhi tak — sabse zyada volume-with-zero-result case. Support/training chahiye.</span><span class="link">Leads Dekhein →</span></div>
+        <div class="insight smart"><span class="ic"><i class="fas fa-brain"></i></span><span><b>Chhupa hua pattern:</b> "Shikha Rajpal LDR" ka qualify rate theek-thaak hai (27%), par uski qualified leads Sales ke paas jaakar <b>bilkul convert nahi hoti</b> (113 leads bheji, sirf 1 order = 0.9%). Jabki "Mamta" ka same 27% qualify rate hone ke bawajood downstream <b>22% convert</b> hota hai. Matlab sirf qualify-rate dekhna kaafi nahi — "qualified" ka matlab dono LDR ke liye alag lag raha hai, review chahiye.</span><span class="link">Leads Dekhein →</span></div>
+        <div class="insight good"><span class="ic"><i class="fas fa-star"></i></span><span><b>Best pairing mila:</b> "Mamta" (LDR) → "Mamta Sales" — 27 leads bheji, 18 order (67% win rate!), best number in the whole data. Is handoff pattern ko samajh kar baaki LDR-Sales pairings mein replicate karne layak hai.</span><span class="link">Leads Dekhein →</span></div>
+      </div>
+    </section>
+
+    <section>
+      <div class="charts-2">
+        <div class="chart-card">
+          <h4><i class="fas fa-chart-line" style="color:var(--azure);"></i> Monthly Trend</h4>
+          <div class="chart-box"><canvas id="trendChart"></canvas></div>
+        </div>
+        <div class="chart-card">
+          <h4><i class="fas fa-chart-pie" style="color:var(--purple);"></i> Pipeline Health <span class="hint">click a slice</span></h4>
+          <div class="chart-box"><canvas id="healthChart"></canvas></div>
+        </div>
+      </div>
+    </section>
+
+    <section>
+      <div class="charts-2">
+        <div class="chart-card">
+          <h4><i class="fas fa-filter" style="color:var(--ink);"></i> Sales Funnel <span class="hint">where leads drop off</span></h4>
+          <div class="chart-box" style="min-height:180px;"><canvas id="funnelChart"></canvas></div>
+        </div>
+        <div class="chart-card">
+          <h4><i class="fas fa-bullseye" style="color:var(--teal);"></i> Source Performance % <span class="hint">click a bar</span></h4>
+          <div class="chart-box" style="min-height:180px;"><canvas id="sourceChart"></canvas></div>
+        </div>
+      </div>
+    </section>
+
+    <section>
+      <div class="charts-3">
+        <div class="chart-card"><h4><i class="fas fa-user-tie" style="color:var(--azure);"></i> Top LDRs — Qualified</h4><div class="chart-box"><canvas id="topLdrChart"></canvas></div></div>
+        <div class="chart-card"><h4><i class="fas fa-handshake" style="color:var(--green);"></i> Top Sales — Orders Won</h4><div class="chart-box"><canvas id="topSalesChart"></canvas></div></div>
+        <div class="chart-card"><h4><i class="fas fa-location-dot" style="color:var(--purple);"></i> Top 10 States</h4><div class="chart-box"><canvas id="topStateChart"></canvas></div></div>
+      </div>
+    </section>
+
+    <section>
+      <div class="sec-head"><h2><span class="sec-ic"><i class="fas fa-diagram-project"></i></span>LDR Performance — Kisne Kitni Qualify Ki, Kiske Paas Gayi</h2><span class="sec-note">row par click karke expand karo</span></div>
+      <div class="tablewrap">
+        <table class="dtable">
+          <thead><tr><th class="l">LDR Name</th><th>Assigned</th><th>Qualified</th><th>Qualify Rate</th><th>Sent to Sales</th><th>Downstream Orders</th><th>Downstream Win Rate</th></tr></thead>
+          <tbody id="ldrDrillBody"></tbody>
+        </table>
+      </div>
+    </section>
+  </div>
+
+  <!-- ============================= MECA ============================= -->
+  <div class="part" id="part-meca">
+    <div class="filterbar">
+      <div class="fgroup"><label>From Date</label><input class="fctl" type="date" value="2026-04-01" style="min-width:130px;" /></div>
+      <div class="fgroup"><label>To Date</label><input class="fctl" type="date" value="2026-09-05" style="min-width:130px;" /></div>
+      <div class="fgroup"><label>Team</label><select class="fctl" id="mecaTeam"><option value="sales">Sales Team (Revenue Closing)</option><option value="ldr">LDR Team (Qualification)</option></select></div>
+      <div class="fgroup"><label>Executive</label><select class="fctl" id="mecaExec"><option value="">All Personnel (Pivot View)</option></select></div>
+    </div>
+
+    <p class="analyst-note"><i class="fas fa-lightbulb"></i> Purani MECA sirf "Handled/Closed/Conv%/Revenue" dikhati thi — <b>Fresh vs Old split aur Avg Touch column add kiye</b> (already confirm kiya tha pichhle round mein). Ek naya observation: neeche table mein "Satish" ka avg value ₹6,27,778 hai (sirf 2 deals se) — ek bada single order poora average khींch raha hai, isliye "Avg Value" akela mat dekho, deals-count ke saath dekho.</p>
+
+    <section>
+      <div class="tile-grid">
+        <div class="tile"><div class="tile-ic" style="background:var(--azure);"><i class="fas fa-user-group"></i></div><div class="v num" id="mUnique">1,005</div><div class="l">Unique Leads Handled</div><div class="sub" id="mFreshOld">Fresh: 117 · Old: 888</div></div>
+        <div class="tile"><div class="tile-ic" style="background:var(--purple);"><i class="fas fa-phone"></i></div><div class="v num" id="mFollowups">951</div><div class="l">Total Follow-ups</div><div class="sub" id="mAvgTouch">Avg Touch: 0.9x per lead</div></div>
+        <div class="tile"><div class="tile-ic" style="background:var(--green);"><i class="fas fa-circle-check"></i></div><div class="v num" id="mClosed">59</div><div class="l">Successful Closures</div></div>
+        <div class="tile"><div class="tile-ic" style="background:var(--amber);"><i class="fas fa-percent"></i></div><div class="v num" id="mConv">5.9%</div><div class="l">Overall Conv. Rate</div></div>
+        <div class="tile"><div class="tile-ic" style="background:var(--green);"><i class="fas fa-indian-rupee-sign"></i></div><div class="v num" id="mRevenue">₹34,01,247</div><div class="l">Total Sales Revenue</div></div>
+        <div class="tile"><div class="tile-ic" style="background:var(--teal);"><i class="fas fa-scale-balanced"></i></div><div class="v num" id="mAvgValue">₹57,648</div><div class="l">Avg. Value Amount</div></div>
+      </div>
+    </section>
+
+    <section>
+      <div class="sec-head"><h2><span class="sec-ic"><i class="fas fa-table-cells"></i></span>Executive-wise Pipeline Pivot</h2></div>
+      <div class="tablewrap">
+        <table class="dtable">
+          <thead><tr><th class="l">Executive</th><th>Total Handled</th><th>Fresh</th><th>Old</th><th>Follow-ups</th><th>Avg Touch</th><th>Deals Closed</th><th>Conv %</th><th>Total Sales</th><th>Avg Value</th></tr></thead>
+          <tbody id="mecaBody"></tbody>
+        </table>
+      </div>
+    </section>
+  </div>
+
+  <section class="review">
+    <h2>Aapse confirm karna hai</h2>
+    <ol>
+      <li>Business Analytics ka layout — cards → insights → charts → LDR drill-down table, is order mein theek hai?</li>
+      <li>Auto-Insights mein 4 types (urgent/warning/smart-pattern/good) rakhna theek hai, ya sirf "weak points" jaisa purane system mein tha?</li>
+      <li>MECA mein Sales/LDR team switch chahiye ya bas ek hi (Sales) rakhein jaisa purane mein tha?</li>
+      <li>"Leads Dekhein" link click karne par — seedha filtered Leads list khulni chahiye (jaisa aapki reference image mein tha)?</li>
+    </ol>
+    <p class="data-note">Saare numbers real Firestore sample dataset (2,509 leads, 4,950 activity docs) se ek complete scan karke nikale gaye — koi fake number nahi. Poora production data aane ke baad yehi cards apne aap sahi final numbers dikhayenge.</p>
+  </section>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.5.1/chart.umd.min.js"></script>
+<script>
+  const cs = getComputedStyle(document.documentElement);
+  const col = (name) => cs.getPropertyValue(name).trim();
+  if (typeof Chart !== 'undefined') {
+    Chart.defaults.color = col('--muted');
+    Chart.defaults.font.family = "'Inter', sans-serif";
+    Chart.defaults.borderColor = col('--line');
+  }
+
+  document.querySelectorAll('.part-tabs button').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('.part-tabs button').forEach((b) => b.classList.remove('on'));
+      btn.classList.add('on');
+      document.querySelectorAll('.part').forEach((p) => p.classList.remove('on'));
+      document.getElementById('part-' + btn.dataset.part).classList.add('on');
+    });
+  });
+
+  const AVATAR_COLORS = ['#0074d9', '#0d7d6f', '#e0342b', '#f0a202', '#8e44ad', '#1a9c4e'];
+  function initials(name) { return name.split(' ').slice(0, 2).map((w) => w[0]).join('').toUpperCase(); }
+  function avatarColor(name) { let h = 0; for (const c of name) h = (h * 31 + c.charCodeAt(0)) % AVATAR_COLORS.length; return AVATAR_COLORS[h]; }
+  function ratePill(pct) {
+    const cls = pct >= 20 ? 'hi' : pct >= 5 ? 'mid' : 'lo';
+    return `<span class="rate-pill ${cls}">${pct}%</span>`;
+  }
+
+  // ================= REAL DATA (Firestore full-scan, 2026-09-05, sample dataset) =================
+  const LDR_DRILL = [
+    {
+      name: 'Neelam', assigned: 1497, qualified: 628, qualifyRate: 42, downstreamOrders: 28, downstreamSent: 628,
+      sentTo: [
+        { name: 'Pradeep', sent: 201, orderDone: 10 }, { name: 'Joginder', sent: 102, orderDone: 7 },
+        { name: 'Satish', sent: 76, orderDone: 2 }, { name: 'Manmeet Singh', sent: 61, orderDone: 2 },
+        { name: 'Johny', sent: 51, orderDone: 0 }, { name: 'Shikha Rajpal Sales', sent: 24, orderDone: 3 },
+      ],
+    },
+    {
+      name: 'Shikha Rajpal LDR', assigned: 411, qualified: 113, qualifyRate: 27, downstreamOrders: 1, downstreamSent: 113,
+      sentTo: [
+        { name: 'Shikha Rajpal Sales', sent: 28, orderDone: 1 }, { name: 'Pradeep', sent: 16, orderDone: 0 },
+        { name: 'Satish', sent: 13, orderDone: 0 }, { name: 'Johny', sent: 8, orderDone: 0 },
+      ],
+    },
+    {
+      name: 'Mamta', assigned: 334, qualified: 91, qualifyRate: 27, downstreamOrders: 20, downstreamSent: 91,
+      sentTo: [
+        { name: 'Mamta Sales', sent: 27, orderDone: 18 }, { name: 'Pradeep', sent: 22, orderDone: 2 },
+        { name: 'Sumit Rathor', sent: 15, orderDone: 0 }, { name: 'Joginder', sent: 8, orderDone: 0 },
+      ],
+    },
+    {
+      name: 'Akshay Sharma LDR', assigned: 118, qualified: 29, qualifyRate: 25, downstreamOrders: 2, downstreamSent: 29,
+      sentTo: [{ name: 'Akshay Sharma', sent: 28, orderDone: 2 }],
+    },
+  ];
+
+  const ldrBody = document.getElementById('ldrDrillBody');
+  LDR_DRILL.forEach((l, i) => {
+    const winRate = l.downstreamSent ? Math.round((l.downstreamOrders / l.downstreamSent) * 100) : 0;
+    const tr = document.createElement('tr');
+    tr.className = 'drow'; tr.dataset.idx = i;
+    tr.innerHTML = `
+      <td class="l nm-cell"><span class="expand-caret"><i class="fas fa-chevron-right"></i></span><span class="avatar" style="background:${avatarColor(l.name)};">${initials(l.name)}</span><b>${l.name}</b></td>
+      <td class="num">${l.assigned.toLocaleString('en-IN')}</td>
+      <td class="num" style="color:var(--azure); font-weight:700;">${l.qualified.toLocaleString('en-IN')}</td>
+      <td>${ratePill(l.qualifyRate)}</td>
+      <td class="num">${l.downstreamSent.toLocaleString('en-IN')}</td>
+      <td class="num" style="color:var(--green); font-weight:700;">${l.downstreamOrders}</td>
+      <td>${ratePill(winRate)}</td>`;
+    const subTr = document.createElement('tr');
+    subTr.className = 'subwrap'; subTr.id = 'sub-' + i;
+    subTr.innerHTML = `<td colspan="7"><table class="subtable"><thead><tr><th>Sales Rep</th><th>Leads Sent</th><th>Order Done</th><th>Win Rate</th></tr></thead><tbody>${
+      l.sentTo.map((s) => `<tr><td>${s.name}</td><td class="num">${s.sent}</td><td class="num">${s.orderDone}</td><td class="num">${s.sent ? Math.round((s.orderDone / s.sent) * 100) : 0}%</td></tr>`).join('')
+    }</tbody></table></td>`;
+    tr.addEventListener('click', () => { tr.classList.toggle('open'); subTr.classList.toggle('open'); });
+    ldrBody.appendChild(tr);
+    ldrBody.appendChild(subTr);
+  });
+
+  // ---- charts (Business Analytics) ----
+  try {
+    if (typeof Chart === 'undefined') throw new Error('Chart.js did not load');
+
+    new Chart(document.getElementById('trendChart'), {
+      type: 'line',
+      data: {
+        labels: ['Apr', 'May', 'Jun', 'Jul', 'Aug'],
+        datasets: [
+          { label: 'Total Leads', data: [10, 301, 506, 1124, 558], borderColor: col('--azure'), backgroundColor: color_a(col('--azure'), .12), fill: true, tension: .35, yAxisID: 'y' },
+          { label: 'Qualified', data: [4, 296, 209, 353, 135], borderColor: col('--green'), backgroundColor: color_a(col('--green'), .1), fill: true, tension: .35, yAxisID: 'y' },
+          { label: 'Orders Won', data: [0, 13, 16, 25, 5], borderColor: col('--red'), backgroundColor: 'transparent', tension: .35, yAxisID: 'y1' },
+        ],
+      },
+      options: {
+        maintainAspectRatio: false,
+        scales: { y: { grid: { color: col('--line') } }, y1: { position: 'right', grid: { display: false } }, x: { grid: { display: false } } },
+        plugins: { legend: { position: 'bottom', labels: { boxWidth: 10, font: { size: 11 } } } },
+      },
+    });
+
+    new Chart(document.getElementById('healthChart'), {
+      type: 'doughnut',
+      data: {
+        labels: ['Fresh/New', 'In Progress', 'Qualified Pending', 'Positive Engagement', 'Order Done', 'Lost/Dead'],
+        datasets: [{ data: [36, 1675, 0, 720, 59, 19], backgroundColor: [col('--azure'), col('--amber'), col('--purple'), '#5cb8ff', col('--green'), col('--red')], borderColor: col('--card'), borderWidth: 2 }],
+      },
+      options: { cutout: '60%', maintainAspectRatio: false, plugins: { legend: { position: 'bottom', labels: { boxWidth: 9, font: { size: 10 } } } } },
+    });
+
+    new Chart(document.getElementById('funnelChart'), {
+      type: 'bar',
+      data: {
+        labels: ['Total Leads', 'LDR Qualified', 'Assigned to Sales', 'Positive Engagement', 'Order Done'],
+        datasets: [{ data: [2509, 1007, 1007, 720, 59], backgroundColor: [col('--ink'), '#0d3f6e', col('--amber'), col('--purple'), col('--green')], borderRadius: 4 }],
+      },
+      options: { indexAxis: 'y', maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { x: { grid: { color: col('--line') } }, y: { grid: { display: false } } } },
+    });
+
+    new Chart(document.getElementById('sourceChart'), {
+      type: 'bar',
+      data: {
+        labels: ['Facebook', 'Instagram', 'Data Import', 'Youtube'],
+        datasets: [{ data: [22, 59, 100, 96], backgroundColor: [col('--amber'), col('--green'), col('--green'), col('--green')], borderRadius: 4 }],
+      },
+      options: { maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { y: { max: 100, grid: { color: col('--line') } }, x: { grid: { display: false } } } },
+    });
+
+    new Chart(document.getElementById('topLdrChart'), {
+      type: 'bar',
+      data: { labels: ['Neelam', 'Shikha Rajpal', 'Mamta', 'Akshay Sharma'], datasets: [{ data: [628, 113, 91, 29], backgroundColor: col('--azure'), borderRadius: 4, maxBarThickness: 22 }] },
+      options: { indexAxis: 'y', maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { x: { grid: { color: col('--line') } }, y: { grid: { display: false } } } },
+    });
+
+    new Chart(document.getElementById('topSalesChart'), {
+      type: 'bar',
+      data: { labels: ['Mamta Sales', 'Pradeep', 'Joginder', 'Shikha Rajpal', 'Amit'], datasets: [{ data: [19, 12, 7, 4, 4], backgroundColor: col('--green'), borderRadius: 4, maxBarThickness: 22 }] },
+      options: { indexAxis: 'y', maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { x: { grid: { color: col('--line') } }, y: { grid: { display: false } } } },
+    });
+
+    new Chart(document.getElementById('topStateChart'), {
+      type: 'bar',
+      data: { labels: ['UP', 'MP', 'Haryana', 'Rajasthan', 'Bihar'], datasets: [{ data: [229, 67, 66, 64, 63], backgroundColor: col('--purple'), borderRadius: 4, maxBarThickness: 22 }] },
+      options: { indexAxis: 'y', maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { x: { grid: { color: col('--line') } }, y: { grid: { display: false } } } },
+    });
+  } catch (e) {
+    console.error('chart skipped:', e.message);
+  }
+
+  function color_a(hex, a) {
+    // hex like #rrggbb -> rgba string (Chart.js area fill needs alpha; color-mix isn't parsed by canvas)
+    const h = hex.replace('#', '');
+    const r = parseInt(h.substring(0, 2), 16), g = parseInt(h.substring(2, 4), 16), b = parseInt(h.substring(4, 6), 16);
+    return `rgba(${r},${g},${b},${a})`;
+  }
+
+  // ================= MECA =================
+  const MECA_ROWS = [
+    { name: 'Satish', handled: 111, fresh: 7, old: 104, followups: 26, avgTouch: '0.2', dealsClosed: 2, convPct: '1.8', totalSales: 1255555, avgValue: 627778 },
+    { name: 'Mamta Sales', handled: 36, fresh: 15, old: 21, followups: 126, avgTouch: '3.5', dealsClosed: 19, convPct: '52.8', totalSales: 766582, avgValue: 40346 },
+    { name: 'Pradeep', handled: 264, fresh: 5, old: 259, followups: 398, avgTouch: '1.5', dealsClosed: 12, convPct: '4.5', totalSales: 381247, avgValue: 31771 },
+    { name: 'Amit', handled: 5, fresh: 0, old: 5, followups: 11, avgTouch: '2.2', dealsClosed: 4, convPct: '80.0', totalSales: 338831, avgValue: 84708 },
+    { name: 'Joginder', handled: 126, fresh: 4, old: 122, followups: 51, avgTouch: '0.4', dealsClosed: 7, convPct: '5.6', totalSales: 282408, avgValue: 40344 },
+    { name: 'Sonu 1st', handled: 12, fresh: 0, old: 12, followups: 19, avgTouch: '1.6', dealsClosed: 3, convPct: '25.0', totalSales: 160167, avgValue: 53389 },
+    { name: 'Akshay Sharma', handled: 59, fresh: 22, old: 37, followups: 3, avgTouch: '0.1', dealsClosed: 3, convPct: '5.1', totalSales: 86102, avgValue: 28701 },
+    { name: 'Shikha Rajpal Sales', handled: 52, fresh: 39, old: 13, followups: 27, avgTouch: '0.5', dealsClosed: 4, convPct: '7.7', totalSales: 52607, avgValue: 13152 },
+    { name: 'Naveen', handled: 50, fresh: 4, old: 46, followups: 70, avgTouch: '1.4', dealsClosed: 3, convPct: '6.0', totalSales: 41888, avgValue: 13963 },
+    { name: 'Manmeet Singh', handled: 106, fresh: 2, old: 104, followups: 59, avgTouch: '0.6', dealsClosed: 2, convPct: '1.9', totalSales: 35860, avgValue: 17930 },
+  ];
+
+  const mecaBody = document.getElementById('mecaBody');
+  mecaBody.innerHTML = MECA_ROWS.map((r) => `
+    <tr>
+      <td class="l nm-cell"><span class="avatar" style="background:${avatarColor(r.name)};">${initials(r.name)}</span><b>${r.name}</b></td>
+      <td class="num">${r.handled}</td>
+      <td class="num" style="color:var(--azure);">${r.fresh}</td>
+      <td class="num" style="color:var(--muted);">${r.old}</td>
+      <td class="num">${r.followups}</td>
+      <td class="num" style="font-weight:700; color:var(--purple);">${r.avgTouch}x</td>
+      <td class="num" style="color:var(--green); font-weight:700;">${r.dealsClosed}</td>
+      <td>${ratePill(Math.round(parseFloat(r.convPct)))}</td>
+      <td class="num">₹${r.totalSales.toLocaleString('en-IN')}</td>
+      <td class="num">₹${r.avgValue.toLocaleString('en-IN')}</td>
+    </tr>`).join('');
+
+  const execSel = document.getElementById('mecaExec');
+  execSel.innerHTML += MECA_ROWS.map((r) => `<option>${r.name}</option>`).join('');
+</script>

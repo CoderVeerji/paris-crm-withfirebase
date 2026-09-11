@@ -1,0 +1,190 @@
+rules_version = '2';
+// Paris CRM — Firestore security rules
+// DRAFT — Phase 2 mein test hoga. docs/data-model.md dekho.
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function isSignedIn() { return request.auth != null; }
+    // Provisioned = admin ne is user ko banaya (users/{uid} doc hai). Bahar se koi khud
+    // Firebase Auth sign-up kar bhi le (public API key se), to bhi koi users-doc na hone se
+    // ye false rahega — yani wo kuch likh/padh nahi sakta. Har "sirf signed-in" gate ab yahi hai.
+    function isProvisioned() { return isSignedIn() && exists(/databases/$(database)/documents/users/$(request.auth.uid)); }
+    function userDoc()    { return get(/databases/$(database)/documents/users/$(request.auth.uid)).data; }
+    function role()       { return userDoc().role; }
+    function isAdmin()    { return isProvisioned() && role() == 'admin'; }
+    // md = Managing Director, tl = Team Leader. Dono ko poora business-data DEKHNE + leads pe
+    // ACT karne milta hai, par technical control (settings/users/builders/recycle) sirf admin ka.
+    // Ye role-set FIXED hai — "kaun kya dekhta hai" config se badalta hai, "kaun kya kar sakta
+    // hai" (asli security) yahin fixed rehti hai.
+    function isOversight() { return isProvisioned() && role() in ['admin', 'md', 'tl']; }
+
+    match /users/{uid} {
+      allow read: if isProvisioned();
+      allow create, delete: if isAdmin();
+      allow update: if isAdmin()
+        || (request.auth.uid == uid
+            && request.resource.data.diff(resource.data).affectedKeys()
+                 .hasOnly(['attendance', 'fcm_tokens', 'last_login', 'last_seen', 'last_worked_at', 'must_reset_password', 'updated_at', 'lang']));
+    }
+
+    match /leads/{id} {
+      allow read: if isOversight()
+        || (role() == 'ldr'   && (resource.data.ldr_uid == request.auth.uid
+                                  || resource.data.status in ['fresh', 'new']))
+        || (role() == 'sales' && resource.data.sales_uid == request.auth.uid);
+      allow create: if isProvisioned();
+      // owner / admin / md / tl -> full update.  koi bhi signed-in -> sirf re-inquiry / resurrect fields.
+      // LDR kabhi `sales_status` nahi likh sakta (Sales-stage galti se set na ho) — Sales `status` nahi.
+      // status / sales_status ko khaali ('') set karna kabhi allowed nahi — "other" bucket isse aata tha
+      allow update: if (
+           isOversight()
+        || (role() == 'ldr'   && (resource.data.ldr_uid == request.auth.uid
+                                  || resource.data.status in ['fresh', 'new'])
+                              && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['sales_status']))
+        || (role() == 'sales' && resource.data.sales_uid == request.auth.uid
+                              && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['status', 'ldr_uid']))
+        || (isProvisioned() && request.resource.data.diff(resource.data).affectedKeys().hasOnly(
+              ['is_urgent', 'urgent_at', 'reinq_open', 'next_followup', 'updated_at',
+               'last_action_at', 'last_action_by', 'last_action_by_name',
+               'sla_fresh_alerted', 'sla_followup_alerted', 'sla_followup_due_alerted',
+               'sla_contact_alerted', 'sla_sales_alerted',
+               'archived', 'archived_at', 'reinq_after_archive', 'reinq_after_archive_at', 'reinq_after_archive_count',
+               'status', 'sales_status', 'outcome', 'closed_at']))
+        // Archived lead ko koi bhi provisioned user "dobara enquiry" ke roop me wapas la sakta hai
+        // (WhatsApp campaign se reply aaya -> naya form bhardo). Sirf archived->unarchived path.
+        || (isProvisioned()
+            && resource.data.get('archived', false) == true
+            && request.resource.data.archived == false
+            && request.resource.data.reinq_after_archive == true)
+        // Re-inquiry pe re-assign — customer dobara aaya, jisne handle kiya wo lead kisi aur ko
+        // (ya khud) de sakta hai. is_urgent (re)set hona zaroori — normal edit nahi.
+        || (isProvisioned()
+            && request.resource.data.is_urgent == true
+            // purani leads pe `urgent_at` field kabhi hoga hi nahi — .get() se safe padho,
+            // seedha `resource.data.urgent_at` missing-field pe poora rule hi crash kar deta tha
+            && request.resource.data.urgent_at != resource.data.get('urgent_at', null)
+            && request.resource.data.diff(resource.data).affectedKeys().hasOnly(
+                ['is_urgent', 'urgent_at', 'reinq_open', 'next_followup', 'updated_at',
+                 'last_action_at', 'last_action_by', 'last_action_by_name',
+                 'sla_fresh_alerted', 'sla_followup_alerted', 'sla_followup_due_alerted',
+                 'sla_contact_alerted', 'sla_sales_alerted',
+                 'archived', 'archived_at', 'reinq_after_archive', 'reinq_after_archive_at', 'reinq_after_archive_count',
+                 'status', 'sales_status', 'outcome', 'closed_at',
+                 'ldr_uid', 'ldr_name', 'sales_uid', 'sales_name', 'assigned_sales_at']))
+        ) && !(request.resource.data.diff(resource.data).affectedKeys().hasAny(['status']) && request.resource.data.status == '')
+          && !(request.resource.data.diff(resource.data).affectedKeys().hasAny(['sales_status']) && request.resource.data.sales_status == '');
+      allow delete: if isAdmin();
+    }
+
+    match /phone_index/{digits} {
+      allow read:  if isProvisioned();
+      allow write: if isProvisioned();   // lead create / phone-edit ke saath sync
+    }
+
+    match /activity/{id} {
+      allow read:   if isProvisioned();
+      allow create: if isProvisioned();
+      allow update, delete: if false;
+    }
+
+    match /orders/{id} {
+      allow read:  if isProvisioned();
+      allow write: if isAdmin() || role() == 'sales';
+    }
+
+    match /stats_daily/{id}    { allow read: if isOversight(); allow write: if false; }
+    match /stats_cohort/{id}   { allow read: if isOversight(); allow write: if false; }
+    match /reports_weekly/{id} { allow read: if isOversight(); allow write: if false; }
+
+    // Email App Password jaisa secret yahan — kabhi kisi ko (admin ko bhi) wapas nahi padha jaata,
+    // sirf overwrite ho sakta hai. Cloud Functions Admin SDK se seedha padh leti hain (rules bypass).
+    match /config/mail_secret {
+      allow read:  if false;
+      allow write: if isAdmin();
+    }
+
+    // ad_spend — dashboard ke ROI report ke liye md/tl ko bhi padhna hai
+    match /config/ad_spend {
+      allow read:  if isOversight();
+      allow write: if isAdmin();
+    }
+
+    // Sirf ye config docs sab users padh sakte hain (stages/forms LDR-Sales ko chahiye).
+    // mail_secret / ai_secret is rule se match NAHI hote (id list mein nahi) — unki apni
+    // "allow read: if false" hi lagti hai, isliye woh sach mein private rehte hain.
+    match /config/{id} {
+      allow read:  if isProvisioned() && id in ['stages', 'forms', 'settings', 'access'];
+      allow write: if isAdmin();
+    }
+
+    match /logs/{id} {
+      allow read:   if isAdmin();
+      allow create: if isProvisioned();
+      allow update, delete: if false;
+    }
+
+    match /audit/{id} {
+      allow read:   if isAdmin() || role() == 'md';
+      allow create: if isProvisioned();
+      allow update, delete: if false;
+    }
+
+    match /recycle/{id} {
+      allow read, write: if isAdmin();
+    }
+
+    match /admin_tasks/{id} {
+      allow read, write: if isAdmin();   // function server-side merge karta hai (rules bypass)
+    }
+
+    match /notifications/{id} {
+      allow read: if isProvisioned() && resource.data.to_uid == request.auth.uid;
+      allow update: if isProvisioned() && resource.data.to_uid == request.auth.uid
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['read']);
+      // owner apni notification list se item hata (dismiss) sakta hai; banata sirf Cloud Function
+      allow delete: if isProvisioned() && resource.data.to_uid == request.auth.uid;
+      allow create: if false;
+    }
+
+    match /meta/{id} {
+      allow read:  if isProvisioned();
+      allow write: if isProvisioned();   // lead-id counter — koi bhi user naya lead bana sakta hai
+    }
+
+    // Help — Ask-AI. User apna sawaal likhta hai (status:'pending'), function jawab bharta hai (Admin SDK).
+    match /help_queries/{id} {
+      allow read:   if isProvisioned() && (request.auth.uid == resource.data.by_uid || isAdmin());
+      allow create: if isProvisioned()
+                    && request.resource.data.by_uid == request.auth.uid
+                    && request.resource.data.status == 'pending';
+      // sirf owner apna feedback add kar sakta hai — answer/status function likhta hai
+      allow update: if isProvisioned() && request.auth.uid == resource.data.by_uid
+                    && request.resource.data.diff(resource.data).affectedKeys()
+                         .hasOnly(['helpful', 'feedback_note', 'feedback_at', 'ticket_id']);
+      allow delete: if false;
+    }
+
+    // Knowledge base — AI ki "training" (resolved tickets se). Admin manage karta hai;
+    // function (Admin SDK) auto-add karta hai + AI ke liye padhta hai.
+    match /help_kb/{id} {
+      allow read, write: if isAdmin();
+    }
+
+    // Support tickets — owner banata + dekhta hai; sirf admin status/notes badalta hai.
+    match /tickets/{id} {
+      allow read:   if isProvisioned() && (request.auth.uid == resource.data.by_uid || isAdmin());
+      allow create: if isProvisioned()
+                    && request.resource.data.by_uid == request.auth.uid
+                    && request.resource.data.status == 'open';
+      allow update: if isAdmin();
+      allow delete: if isAdmin();
+    }
+
+    // AI API key — kabhi read nahi (function Admin SDK se leta hai), sirf admin overwrite
+    match /config/ai_secret {
+      allow read:  if false;
+      allow write: if isAdmin();
+    }
+  }
+}

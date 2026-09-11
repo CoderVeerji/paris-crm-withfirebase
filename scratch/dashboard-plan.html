@@ -1,0 +1,652 @@
+<!doctype html>
+<title>Leads Command Center</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+
+  :root {
+    --ink: #001f3f;
+    --azure: #0074d9;
+    --green: #1a9c4e;
+    --green-soft: #e7f6ec;
+    --amber: #f0a202;
+    --red: #e0342b;
+    --teal: #0d7d6f;
+    --bg: #f2f5f9;
+    --card: #ffffff;
+    --card-2: #f7f9fc;
+    --text: #1c2733;
+    --muted: #6b7a8d;
+    --line: #e6ebf1;
+    --shadow-sm: 0 1px 3px rgba(16, 33, 55, 0.06), 0 1px 2px rgba(16, 33, 55, 0.04);
+    --shadow: 0 4px 16px rgba(16, 33, 55, 0.08);
+    --radius: 16px;
+    --radius-sm: 12px;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --ink: #6fa8dc; --azure: #4aa3ff; --green: #3ecb7e; --green-soft: #123322;
+      --amber: #ffb648; --red: #ff6b62; --teal: #3fc7b6;
+      --bg: #0b1420; --card: #101c2c; --card-2: #16243696; --text: #e8eef6; --muted: #93a3b8; --line: #223349;
+      --shadow-sm: 0 1px 3px rgba(0,0,0,0.3); --shadow: 0 4px 16px rgba(0,0,0,0.35);
+    }
+  }
+  :root[data-theme="dark"] {
+    --ink: #6fa8dc; --azure: #4aa3ff; --green: #3ecb7e; --green-soft: #123322;
+    --amber: #ffb648; --red: #ff6b62; --teal: #3fc7b6;
+    --bg: #0b1420; --card: #101c2c; --card-2: #16243696; --text: #e8eef6; --muted: #93a3b8; --line: #223349;
+    --shadow-sm: 0 1px 3px rgba(0,0,0,0.3); --shadow: 0 4px 16px rgba(0,0,0,0.35);
+  }
+
+  * { box-sizing: border-box; }
+  button { font: inherit; color: inherit; cursor: pointer; }
+  body { background: var(--bg); color: var(--text); font-family: 'Inter', -apple-system, 'Segoe UI', Roboto, sans-serif; }
+  h1,h2,h3,h4 { text-wrap: balance; font-weight: 700; color: var(--ink); }
+  .num { font-variant-numeric: tabular-nums; }
+
+  .wrap { max-width: 1180px; margin: 0 auto; padding: 26px 20px 90px; }
+
+  /* ---- header ---- */
+  .topbar { display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; flex-wrap: wrap; margin-bottom: 6px; }
+  .brandline { display: flex; align-items: center; gap: 10px; }
+  .brandline .dot { width: 10px; height: 10px; border-radius: 50%; background: var(--azure); box-shadow: 0 0 0 4px color-mix(in srgb, var(--azure) 18%, transparent); }
+  .eyebrow { font-size: 12px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
+  h1 { font-size: 25px; margin: 4px 0 6px; }
+  .lede { color: var(--muted); font-size: 14px; max-width: 66ch; line-height: 1.6; }
+  .plan-badge { display: inline-flex; align-items: center; gap: 6px; background: var(--amber); color: #23150a; font-weight: 700; font-size: 12px; padding: 6px 12px; border-radius: 999px; white-space: nowrap; }
+
+  /* ---- team switcher (now the primary control) ---- */
+  .team-switch { display: flex; gap: 8px; background: var(--card); border: 1px solid var(--line); border-radius: 999px; padding: 5px; margin: 20px 0 12px; width: fit-content; box-shadow: var(--shadow-sm); }
+  .team-switch button { border: none; background: transparent; padding: 9px 22px; border-radius: 999px; font-size: 13.5px; font-weight: 700; color: var(--muted); transition: all .15s ease; }
+  .team-switch button.on.ldr { background: var(--azure); color: #fff; }
+  .team-switch button.on.sales { background: var(--teal); color: #fff; }
+
+  /* ---- filter bar ---- */
+  .filterbar { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; background: var(--card); border: 1px solid var(--line); border-radius: var(--radius); padding: 12px 14px; margin: 0 0 22px; box-shadow: var(--shadow-sm); }
+  .fgroup { display: flex; gap: 6px; flex-wrap: wrap; }
+  .fgroup-label { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .05em; color: var(--muted); margin-right: 4px; align-self: center; }
+  .pill { border: 1.5px solid var(--line); background: var(--card-2); color: var(--text); font-size: 12.5px; font-weight: 600; padding: 7px 13px; border-radius: 999px; transition: all .15s ease; }
+  .pill:hover { border-color: var(--azure); }
+  .pill.on { background: var(--ink); border-color: var(--ink); color: #fff; }
+  .datein { border: 1.5px solid var(--line); background: var(--card-2); color: var(--text); font-size: 12.5px; font-weight: 600; padding: 6px 10px; border-radius: var(--radius-sm); font-family: inherit; }
+  .sep { width: 1px; align-self: stretch; background: var(--line); margin: 0 2px; }
+
+  /* ---- sections ---- */
+  section { margin: 30px 0; }
+  .sec-head { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; margin-bottom: 12px; flex-wrap: wrap; }
+  .sec-head h2 { font-size: 14.5px; text-transform: uppercase; letter-spacing: .04em; display: flex; align-items: center; gap: 8px; }
+  .sec-num { display: inline-flex; align-items: center; justify-content: center; width: 22px; height: 22px; border-radius: 50%; background: linear-gradient(135deg, var(--ink), var(--azure)); color: #fff; font-size: 11px; font-weight: 800; box-shadow: 0 2px 6px color-mix(in srgb, var(--azure) 40%, transparent); }
+  .sec-note { font-size: 12px; color: var(--muted); }
+
+  .tile-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; }
+  .tile-grid.g3 { grid-template-columns: repeat(3, 1fr); }
+  .tile { background: var(--card); border: 1px solid var(--line); border-radius: var(--radius); padding: 15px 17px; box-shadow: var(--shadow-sm); position: relative; overflow: hidden; font: inherit; color: inherit; text-align: left; width: 100%; transition: transform .12s ease; }
+  .tile:hover { transform: translateY(-1px); box-shadow: var(--shadow); }
+  .tile:active { transform: scale(.98); }
+  .tile .v { font-size: 24px; font-weight: 800; color: var(--ink); }
+  .tile .l { font-size: 11.5px; color: var(--muted); font-weight: 600; margin-top: 2px; }
+  .tile::before { content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 4px; background: linear-gradient(180deg, var(--bar), color-mix(in srgb, var(--bar) 55%, transparent)); }
+  .tile.c-total { --bar: var(--ink); } .tile.c-new { --bar: var(--azure); } .tile.c-old { --bar: var(--muted); }
+  .tile.c-pending { --bar: var(--amber); } .tile.c-good { --bar: var(--green); } .tile.c-lost { --bar: var(--red); }
+
+  .status-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 9px; }
+  .stat-card { display: flex; align-items: center; justify-content: space-between; gap: 8px; background: var(--card); border: 1px solid var(--line); border-radius: var(--radius-sm); padding: 11px 14px; transition: transform .12s ease, box-shadow .12s ease, border-color .12s ease; text-align: left; width: 100%; font: inherit; color: inherit; box-shadow: var(--shadow-sm); }
+  .stat-card:hover { transform: translateY(-1px); box-shadow: var(--shadow); border-color: var(--dot); }
+  .stat-card:active { transform: scale(.98); }
+  .stat-card .sc-l { display: flex; align-items: center; gap: 8px; font-size: 12.5px; font-weight: 600; }
+  .stat-card .sc-l::before { content: ''; width: 8px; height: 8px; border-radius: 50%; background: var(--dot); flex: none; }
+  .stat-card .sc-v { font-size: 16px; font-weight: 800; color: var(--ink); }
+  .stat-card.fresh { --dot: var(--azure); } .stat-card.wip { --dot: var(--amber); } .stat-card.good { --dot: var(--green); }
+  .stat-card.win { --dot: var(--teal); } .stat-card.lost { --dot: var(--red); } .stat-card.idle { --dot: var(--muted); }
+
+  /* ---- inline expand-on-click results panel ---- */
+  .expand { max-height: 0; overflow: hidden; transition: max-height .3s ease; }
+  .expand.open { max-height: 600px; }
+  .expand-inner { margin-top: 12px; background: var(--card); border: 1px solid var(--azure); border-radius: var(--radius); box-shadow: var(--shadow); overflow: hidden; }
+  .expand-head { display: flex; justify-content: space-between; align-items: center; padding: 12px 16px; background: color-mix(in srgb, var(--azure) 8%, var(--card)); border-bottom: 1px solid var(--line); }
+  .expand-head b { font-size: 13px; color: var(--ink); }
+  .expand-close { background: none; border: none; color: var(--muted); font-size: 18px; line-height: 1; padding: 2px 6px; }
+  .expand-close:hover { color: var(--red); }
+  .xrow { display: flex; justify-content: space-between; align-items: center; padding: 10px 16px; border-bottom: 1px solid var(--line); font-size: 12.5px; }
+  .xrow:last-child { border-bottom: none; }
+  .xrow .xn { font-weight: 700; }
+  .xrow .xm { color: var(--muted); }
+  .xrow .xstatus { font-size: 10.5px; font-weight: 700; padding: 3px 9px; border-radius: 999px; background: var(--card-2); }
+
+  /* ---- range-report cards ---- */
+  .rr-tiles { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+
+  /* ---- calling report table ---- */
+  .calling-wrap { overflow-x: auto; border-radius: var(--radius); box-shadow: var(--shadow); }
+  table.calling-table { border-collapse: collapse; width: 100%; min-width: 720px; background: var(--card); font-size: 13px; }
+  table.calling-table thead th { background: var(--ink); color: #fff; font-weight: 700; padding: 13px 16px; text-align: right; white-space: nowrap; font-size: 11.5px; letter-spacing: .02em; }
+  table.calling-table thead th:first-child { text-align: left; }
+  table.calling-table td { padding: 13px 16px; text-align: right; border-bottom: 1px solid var(--line); vertical-align: middle; }
+  table.calling-table tr:last-child td { border-bottom: none; }
+  table.calling-table tr:hover td { background: var(--card-2); }
+  .cm-name { display: flex; align-items: center; gap: 10px; text-align: left !important; }
+  .cm-avatar { width: 32px; height: 32px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 800; color: #fff; flex: none; }
+  .cm-name b { font-size: 13px; color: var(--text); }
+  .ct-target .n { font-weight: 700; color: var(--text); }
+  .ct-target .risk { display: inline-flex; align-items: center; gap: 4px; font-size: 10px; font-weight: 800; margin-top: 4px; padding: 2px 8px; border-radius: 999px; }
+  .ct-target .risk.hi { background: color-mix(in srgb, var(--red) 14%, var(--card)); color: var(--red); }
+  .ct-target .risk.mid { background: color-mix(in srgb, var(--amber) 16%, var(--card)); color: var(--amber); }
+  .ct-target .risk.lo { background: color-mix(in srgb, var(--green) 14%, var(--card)); color: var(--green); }
+  .ct-worked { font-weight: 800; color: var(--text); font-size: 15px; }
+  .ct-rate { display: flex; align-items: center; gap: 8px; justify-content: flex-end; }
+  .ct-rate-track { width: 60px; height: 7px; border-radius: 999px; background: var(--line); overflow: hidden; }
+  .ct-rate-fill { height: 100%; border-radius: 999px; }
+  .ct-rate-pct { font-size: 12px; font-weight: 700; width: 38px; text-align: right; }
+  .ct-touches { font-weight: 700; color: var(--azure); font-size: 13.5px; }
+  .ct-touches .x { font-size: 10.5px; color: var(--muted); font-weight: 600; margin-left: 2px; }
+  .ct-result { font-weight: 800; color: var(--green); font-size: 15px; }
+  .ct-last { font-size: 11.5px; font-weight: 600; color: var(--red); white-space: nowrap; }
+  .ct-last.stale { color: var(--muted); }
+  .analyst-note { background: color-mix(in srgb, var(--azure) 6%, var(--card)); border: 1px solid color-mix(in srgb, var(--azure) 25%, var(--line)); border-radius: var(--radius-sm); padding: 12px 15px; font-size: 12.5px; line-height: 1.65; color: var(--text); margin-bottom: 12px; }
+  .analyst-note i { color: var(--azure); margin-right: 6px; }
+
+  /* ---- charts ---- */
+  .chart-card { background: var(--card); border: 1px solid var(--line); border-radius: var(--radius); box-shadow: var(--shadow-sm); padding: 16px 18px; }
+  .chart-card h4 { font-size: 13px; margin-bottom: 10px; }
+  .chart-box { position: relative; min-height: 200px; }
+  .charts-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+
+  /* ---- notes / confirmations ---- */
+  .review { background: var(--card); border: 1px dashed color-mix(in srgb, var(--amber) 55%, var(--line)); border-radius: var(--radius); padding: 18px 20px; }
+  .review h2 { font-size: 15px; margin-bottom: 4px; }
+  .review ol { margin: 10px 0 0 20px; padding: 0; font-size: 13.5px; line-height: 1.85; }
+  .review ol li b { color: var(--ink); }
+  .review .yes { color: var(--green); font-weight: 700; }
+  .callout { background: var(--green-soft); border: 1px solid color-mix(in srgb, var(--green) 40%, var(--line)); border-radius: var(--radius); padding: 16px 18px; font-size: 13.5px; line-height: 1.7; }
+  .callout b { color: var(--green); }
+  .data-note { font-size: 11.5px; color: var(--muted); margin-top: 16px; border-top: 1px solid var(--line); padding-top: 12px; }
+
+  .toast { position: fixed; left: 50%; bottom: 26px; transform: translateX(-50%) translateY(120%); background: var(--ink); color: #fff; font-size: 13px; font-weight: 600; padding: 10px 18px; border-radius: 999px; box-shadow: var(--shadow); transition: transform .25s ease; z-index: 50; white-space: nowrap; }
+  .toast.show { transform: translateX(-50%) translateY(0); }
+
+  @media (max-width: 860px) {
+    .tile-grid, .tile-grid.g3, .rr-tiles { grid-template-columns: repeat(2, 1fr); }
+    .status-grid { grid-template-columns: repeat(2, 1fr); }
+    .charts-2 { grid-template-columns: 1fr; }
+  }
+</style>
+
+<div class="wrap">
+  <div class="topbar">
+    <div>
+      <div class="brandline"><span class="dot"></span><span class="eyebrow">Paris CRM · Admin</span></div>
+      <h1>Leads Command Center</h1>
+      <p class="lede">Ek time pe ek hi team dikhegi (LDR ya Sales — dono ka kaam alag hai), poora din-wise breakdown ke saath. Har card click karo — data yahin niche khul jaayega, kahin aur jaana nahi padega.</p>
+    </div>
+    <span class="plan-badge">✎ Draft plan v3 — approval se pehle</span>
+  </div>
+
+  <div class="team-switch">
+    <button class="on ldr" data-team="ldr">LDR Team</button>
+    <button class="sales" data-team="sales">Sales Team</button>
+  </div>
+
+  <div class="filterbar">
+    <div class="fgroup">
+      <span class="fgroup-label">Person</span>
+      <select class="pill" id="personSel" style="cursor:pointer;">
+        <option value="">Poori Team</option>
+      </select>
+    </div>
+    <div class="sep"></div>
+    <div class="fgroup">
+      <span class="fgroup-label">Range</span>
+      <button class="pill on" data-range="today">Today</button>
+      <button class="pill" data-range="yst">Yesterday</button>
+      <button class="pill" data-range="7d">Last 7 Days</button>
+      <button class="pill" data-range="week">This Week</button>
+      <button class="pill" data-range="month">This Month</button>
+    </div>
+    <div class="sep"></div>
+    <div class="fgroup">
+      <span class="fgroup-label">Custom</span>
+      <input class="datein" type="date" value="2026-08-29" />
+      <span style="color:var(--muted); font-size:12px;">to</span>
+      <input class="datein" type="date" value="2026-09-05" />
+    </div>
+  </div>
+
+  <!-- ============ 1. TODAY SNAPSHOT ============ -->
+  <section>
+    <div class="sec-head">
+      <h2><span class="sec-num">1</span> Aaj Ka Snapshot — <span id="teamNameA">LDR</span> Team</h2>
+      <span class="sec-note">click karke neeche list dekho</span>
+    </div>
+    <div class="tile-grid" id="snapTiles">
+      <!-- filled by JS per team -->
+    </div>
+    <div class="expand" id="exp-snap"><div class="expand-inner"></div></div>
+  </section>
+
+  <!-- ============ 2. STATUS BREAKDOWN ============ -->
+  <section>
+    <div class="sec-head">
+      <h2><span class="sec-num">2</span> Saare Status (<span id="teamNameB">LDR</span>)</h2>
+      <span class="sec-note">🔵 fresh · 🟠 in-progress · 🟢 qualified · 🟩 won · 🔴 lost · ⚪ untouched</span>
+    </div>
+    <div class="status-grid" id="statusGrid"></div>
+    <div class="expand" id="exp-status"><div class="expand-inner"></div></div>
+  </section>
+
+  <!-- ============ 3. RE-INQUIRY ============ -->
+  <section>
+    <div class="sec-head">
+      <h2><span class="sec-num">3</span> Re-Inquiry Leads (dobara enquiry)</h2>
+      <span class="sec-note" id="teamNameC">LDR ki dobara-aayi leads</span>
+    </div>
+    <div class="tile-grid g3" id="reinqTiles"></div>
+    <div class="expand" id="exp-reinq"><div class="expand-inner"></div></div>
+  </section>
+
+  <!-- ============ 4. TODAY'S FOLLOWUPS ============ -->
+  <section>
+    <div class="sec-head">
+      <h2><span class="sec-num">4</span> Range Ke Followups</h2>
+      <span class="sec-note">jo date-range upar select hai, usi din ke liye jo followup schedule tha</span>
+    </div>
+    <div class="tile-grid g3" id="followupTiles"></div>
+    <div class="expand" id="exp-followup"><div class="expand-inner"></div></div>
+  </section>
+
+  <!-- ============ 5. PENDING DUES (overdue) ============ -->
+  <section>
+    <div class="sec-head">
+      <h2><span class="sec-num">5</span> Pending Dues (range se pehle ke)</h2>
+      <span class="sec-note">range shuru hone se pehle jo followup due tha aur abhi tak nahi hua</span>
+    </div>
+    <div class="tile-grid g3" id="dueTiles"></div>
+    <div class="expand" id="exp-due"><div class="expand-inner"></div></div>
+  </section>
+
+  <!-- ============ 6. TEAM WORKLOAD REPORT ============ -->
+  <section>
+    <div class="sec-head">
+      <h2><span class="sec-num">6</span> Team Workload Report (<span id="teamNameD">LDR</span> Team)</h2>
+      <span class="sec-note" id="callingRangeNote">Today · real data</span>
+    </div>
+    <p class="analyst-note"><i class="fas fa-lightbulb"></i> Aapki bheji image jaisa hu-baaho copy nahi kiya — asli data dekha to pata chala <b>"Win Rate"</b> jaisa column is dataset mein zyada kaam ka nahi (7 din mein order-done bahut kam milta hai, sabka 0% dikhta — misleading). Uski jagah do naye, zyada kaam ke columns rakhe: <b>Activity Rate</b> (poore book ka kitna % is hafte touch hua) aur <b>Avg Touches</b> (ek lead ko average kitni baar call kiya) — aur sabse important, list ab <b>sabse zyada overdue-risk</b> wale member se shuru hoti hai, sirf sabse zyada leads wale se nahi. <b>Ye table upar wale "Range" filter se live jud gaya hai ab</b> — Today/Yesterday/Last 7 Days badal ke dekho, real numbers change honge.</p>
+    <div class="calling-wrap">
+      <table class="calling-table">
+        <thead>
+          <tr>
+            <th>Team Member</th><th>Book Size</th><th id="workedColLabel">Worked (Today)</th><th>Activity Rate</th>
+            <th>Avg Touches</th><th id="resultColHead">Qualified</th><th>Last Active</th>
+          </tr>
+        </thead>
+        <tbody id="callingBody"></tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- ============ SOURCE + STATE (company-wide) ============ -->
+  <section>
+    <div class="sec-head">
+      <h2>Source-Wise aur State-Wise Leads</h2>
+      <span class="sec-note">poori company ka (lead origin — team se independent)</span>
+    </div>
+    <div class="charts-2">
+      <div class="chart-card"><h4>Source ke hisaab se</h4><div class="chart-box"><canvas id="sourceChart"></canvas></div></div>
+      <div class="chart-card"><h4>State/Region ke hisaab se (top 10)</h4><div class="chart-box"><canvas id="stateChart"></canvas></div></div>
+    </div>
+  </section>
+
+  <section class="callout">
+    <b>Ek chhoti par zaroori addition:</b> ab se History tab mein yeh bhi likha jaayega — "Neelam ne 5 Sep ko is lead ke liye 12 Sep ka followup schedule kiya" — matlab action ki date AUR jis date ke liye schedule kiya, dono saath dikhenge. Abhi sirf next follow-up date lead pe save hoti thi, history mein "kisne kab ke liye schedule kiya" trace nahi hota tha — ye gap band ho jaayega.
+  </section>
+
+  <section class="callout" style="margin-top:14px; background:var(--card-2); border-color:var(--line);">
+    <b>Personal vs Admin:</b> yehi poora layout (Snapshot → Status → Re-Inquiry → Followups → Pending Dues) LDR aur Sales apne <b>personal Dashboard</b> par bhi dekhenge — bas "Person" dropdown unko nahi dikhega, seedha apna data aa jaayega, team-switch bhi nahi dikhega (unko sirf apni team ka pata hai). <b>Admin</b> ko yeh poora control milega — kisi bhi team, kisi bhi person ka data dekh sake.
+  </section>
+
+  <section class="review">
+    <h2>Ab confirm karna hai</h2>
+    <ol>
+      <li><b>Last 7 Days</b> — <span class="yes">✓ add kar diya</span> range filter mein.</li>
+      <li><b>Source-wise / State-wise</b> — <span class="yes">✓ add kar diya</span>, neeche naya section (real data: Facebook 1,454, Instagram 915 · UP 229, MP 67, Haryana 66...).</li>
+      <li><b>History mein "scheduled for" date</b> — <span class="yes">✓ plan mein confirm</span>, upar callout dekho — ye backend change hai (`logLeadAction`), dashboard ke saath hi build karunga.</li>
+      <li><b>One team at a time</b> — <span class="yes">✓ badal diya</span> — ab upar "LDR Team / Sales Team" switch hai, "Both" hata diya.</li>
+      <li><b>5-part flow</b> — <span class="yes">✓ bana diya</span>: Aaj Ka Snapshot → Status Breakdown → Re-Inquiry → Range Ke Followups → Pending Dues, ek ke baad ek.</li>
+      <li><b>Click → data neeche</b> — <span class="yes">✓ ab har card click karne par niche hi ek chhota list khulta hai</span> (try karo upar "Total Leads" ya koi bhi status card) — kahin navigate nahi karna padta.</li>
+      <li>Sales tab pe click karke dekho — wahaan Hot Lead / Video Call / Visit Customer / Not Yet Worked sab alag se hai.</li>
+      <li><b>Team Workload Report</b> (section 6) — <span class="yes">✓ redesign kiya</span>, hu-baaho copy nahi: "Win Rate" hataya (7-din mein misleading tha), uski jagah <b>Activity Rate</b> + <b>Avg Touches</b> add kiye — asli useful signals. List ab overdue-risk se sorted hai, sabse zyada leads wale se nahi.</li>
+      <li><b>UI/UX polish</b> — <span class="yes">✓ kiya</span>: rounded corners thoda bada, gradient accent bars, avatar circles, soft hover-lift har card par. Mobile par table side-scroll karta hai (columns squeeze nahi honge).</li>
+      <li>Ab bhi poochna hai: <b>Pending Dues</b> mein status-breakdown chahiye kya (jaise "1,318 mein se kitne Call Back status pe hain, kitne Qualified") — ya sirf worked/pending count kaafi hai?</li>
+    </ol>
+    <p class="data-note">Saare numbers asli hain — Firestore ke sample/test dataset (2,509 leads) se abhi live nikale gaye. Poora production data aane ke baad yehi cards apne aap sahi final numbers dikhayenge, layout same rahega.</p>
+  </section>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.5.1/chart.umd.min.js"></script>
+<script>
+  const cs = getComputedStyle(document.documentElement);
+  const col = (name) => cs.getPropertyValue(name).trim();
+  if (typeof Chart !== 'undefined') {
+    Chart.defaults.color = col('--muted');
+    Chart.defaults.font.family = "'Inter', sans-serif";
+    Chart.defaults.borderColor = col('--line');
+  }
+
+  // ---------------- REAL DATA (pulled live from Firestore sample dataset, 2026-09-05) ----------------
+  const DATA = {
+    ldr: {
+      persons: ['Neelam', 'Mamta', 'Shikha Rajpal', 'Akshay Sharma'],
+      snap: [
+        { k: 'c-total', v: 2360, l: 'Total Leads', msg: 'LDR · Total', rows: [['Ravi Kumar','Fresh','2 din pehle'],['Suman Devi','Call Back','5 din pehle'],['Ajay Singh','Qualified','1 hafta pehle']] },
+        { k: 'c-new', v: 10, l: 'New Leads (aaj bani)', msg: 'LDR · New Today', rows: [['Pooja Sharma','Fresh','aaj 10:14 AM'],['Rakesh Yadav','Fresh','aaj 11:02 AM'],['Simran Kaur','Fresh','aaj 12:40 PM']] },
+        { k: 'c-old', v: 1, l: 'Old Leads (aaj touch hui)', msg: 'LDR · Old Touched Today', rows: [['Deepak Mehta','Call Back → Qualified','aaj 3:20 PM']] },
+        { k: 'c-pending', v: 44, l: 'Pending (kaam baaki)', msg: 'LDR · Pending Today', rows: [['36 Fresh — abhi tak koi call nahi',' ',''],['8 Followup — aaj due tha, hua nahi',' ','']] },
+      ],
+      status: [
+        { cls: 'fresh', l: 'Fresh', v: 36, msg: 'LDR · Fresh' },
+        { cls: 'wip', l: 'Call Back', v: 1478, msg: 'LDR · Call Back' },
+        { cls: 'good', l: 'Qualified', v: 992, msg: 'LDR · Qualified' },
+        { cls: 'lost', l: 'Dead', v: 1, msg: 'LDR · Dead' },
+      ],
+      reinqLabel: 'LDR ki dobara-aayi leads (jo pehle LDR ne band ki thi)',
+      reinq: [
+        { k: 'c-total', v: 28, l: 'Total Aaye', msg: 'LDR Re-inquiry · All' },
+        { k: 'c-pending', v: 0, l: 'Pending', msg: 'LDR Re-inquiry · Pending' },
+        { k: 'c-good', v: 28, l: 'Kaam Hua', msg: 'LDR Re-inquiry · Worked' },
+      ],
+      followup: [
+        { k: 'c-total', v: 8, l: 'Range Mein Due The', msg: 'LDR Followups · Due' },
+        { k: 'c-pending', v: 8, l: 'Pending', msg: 'LDR Followups · Pending' },
+        { k: 'c-good', v: 0, l: 'Kaam Hua', msg: 'LDR Followups · Worked' },
+      ],
+      due: [
+        { k: 'c-total', v: 1318, l: 'Total Overdue', msg: 'LDR Overdue · All' },
+        { k: 'c-good', v: 0, l: 'Aaj Kaam Hua', msg: 'LDR Overdue · Worked Today' },
+        { k: 'c-pending', v: 1318, l: 'Abhi Bhi Pending', msg: 'LDR Overdue · Pending' },
+      ],
+      resultLabel: 'Qualified',
+      calling: {
+        today: [
+          { name: 'Neelam', assigned: 1497, overdue: 1195, worked: 10, contacted: 13, result: 10, lastActive: '2026-09-05T07:53:00Z' },
+          { name: 'Shikha Rajpal', assigned: 411, overdue: 302, worked: 0, contacted: 0, result: 0, lastActive: '2026-09-03T10:11:00Z' },
+          { name: 'Mamta', assigned: 334, overdue: 302, worked: 0, contacted: 0, result: 0, lastActive: '2026-08-22T07:47:00Z' },
+          { name: 'Akshay Sharma', assigned: 118, overdue: 84, worked: 0, contacted: 0, result: 0, lastActive: '2026-08-26T08:42:00Z' },
+          { name: 'Nikhil Verma', assigned: 0, overdue: 0, worked: 0, contacted: 0, result: 0, lastActive: null },
+        ],
+        yst: [
+          { name: 'Neelam', assigned: 1497, overdue: 1195, worked: 0, contacted: 0, result: 0, lastActive: '2026-09-05T07:53:00Z' },
+          { name: 'Shikha Rajpal', assigned: 411, overdue: 302, worked: 0, contacted: 0, result: 0, lastActive: '2026-09-03T10:11:00Z' },
+          { name: 'Mamta', assigned: 334, overdue: 302, worked: 0, contacted: 0, result: 0, lastActive: '2026-08-22T07:47:00Z' },
+          { name: 'Akshay Sharma', assigned: 118, overdue: 84, worked: 0, contacted: 0, result: 0, lastActive: '2026-08-26T08:42:00Z' },
+          { name: 'Nikhil Verma', assigned: 0, overdue: 0, worked: 0, contacted: 0, result: 0, lastActive: null },
+        ],
+        '7d': [
+          { name: 'Neelam', assigned: 1497, overdue: 1195, worked: 14, contacted: 18, result: 10, lastActive: '2026-09-05T07:53:00Z' },
+          { name: 'Shikha Rajpal', assigned: 411, overdue: 302, worked: 5, contacted: 6, result: 0, lastActive: '2026-09-03T10:11:00Z' },
+          { name: 'Mamta', assigned: 334, overdue: 302, worked: 0, contacted: 0, result: 0, lastActive: '2026-08-22T07:47:00Z' },
+          { name: 'Akshay Sharma', assigned: 118, overdue: 84, worked: 0, contacted: 0, result: 0, lastActive: '2026-08-26T08:42:00Z' },
+          { name: 'Nikhil Verma', assigned: 0, overdue: 0, worked: 0, contacted: 0, result: 0, lastActive: null },
+        ],
+      },
+    },
+    sales: {
+      persons: ['Mamta Sales', 'Nikhil Verma', 'Sumit Rathor', 'Abhishek Sharma'],
+      snap: [
+        { k: 'c-total', v: 1007, l: 'Total Leads', msg: 'Sales · Total', rows: [['Vikas Traders','Followup','3 din pehle'],['Anita Boutique','Visit Customer','1 hafta pehle'],['Rahul Garments','Order Done','2 hafte pehle']] },
+        { k: 'c-new', v: 11, l: 'New Leads (aaj assign)', msg: 'Sales · New Today', rows: [['Meera Fashions','Qualified (new)','aaj 9:40 AM'],['Star Textiles','Qualified (new)','aaj 11:15 AM']] },
+        { k: 'c-old', v: 0, l: 'Old Leads (aaj touch hui)', msg: 'Sales · Old Touched Today', rows: [['— aaj koi purani lead touch nahi hui',' ','']] },
+        { k: 'c-pending', v: 213, l: 'Pending (kaam baaki)', msg: 'Sales · Pending Today', rows: [['206 Not Yet Worked — assign hui, chhui nahi',' ',''],['7 Followup — aaj due tha, hua nahi',' ','']] },
+      ],
+      status: [
+        { cls: 'idle', l: 'Not Yet Worked', v: 206, msg: 'Sales · Not Yet Worked' },
+        { cls: 'fresh', l: 'Qualified (new)', v: 5, msg: 'Sales · Qualified' },
+        { cls: 'wip', l: 'Call Back', v: 97, msg: 'Sales · Call Back' },
+        { cls: 'wip', l: 'Followup', v: 519, msg: 'Sales · Followup' },
+        { cls: 'wip', l: 'Hot Lead', v: 2, msg: 'Sales · Hot Lead' },
+        { cls: 'wip', l: 'Video Call', v: 2, msg: 'Sales · Video Call' },
+        { cls: 'wip', l: 'Visit Customer', v: 106, msg: 'Sales · Visit Customer' },
+        { cls: 'win', l: 'Order Done', v: 55, msg: 'Sales · Order Done' },
+        { cls: 'lost', l: 'Lost', v: 18, msg: 'Sales · Lost' },
+      ],
+      reinqLabel: 'Sales ki dobara-aayi leads (jo pehle close ho chuki thi)',
+      reinq: [
+        { k: 'c-total', v: 67, l: 'Total Aaye', msg: 'Sales Re-inquiry · All' },
+        { k: 'c-pending', v: 0, l: 'Pending', msg: 'Sales Re-inquiry · Pending' },
+        { k: 'c-good', v: 67, l: 'Kaam Hua', msg: 'Sales Re-inquiry · Worked' },
+      ],
+      followup: [
+        { k: 'c-total', v: 7, l: 'Range Mein Due The', msg: 'Sales Followups · Due' },
+        { k: 'c-pending', v: 7, l: 'Pending', msg: 'Sales Followups · Pending' },
+        { k: 'c-good', v: 0, l: 'Kaam Hua', msg: 'Sales Followups · Worked' },
+      ],
+      due: [
+        { k: 'c-total', v: 682, l: 'Total Overdue', msg: 'Sales Overdue · All' },
+        { k: 'c-good', v: 1, l: 'Aaj Kaam Hua', msg: 'Sales Overdue · Worked Today' },
+        { k: 'c-pending', v: 681, l: 'Abhi Bhi Pending', msg: 'Sales Overdue · Pending' },
+      ],
+      resultLabel: 'Order Done',
+      calling: {
+        today: [
+          { name: 'Pradeep', assigned: 264, overdue: 238, worked: 0, contacted: 0, result: 0, lastActive: '2026-09-03T05:26:00Z' },
+          { name: 'Joginder', assigned: 126, overdue: 61, worked: 0, contacted: 0, result: 0, lastActive: '2026-09-02T13:46:00Z' },
+          { name: 'Satish', assigned: 111, overdue: 62, worked: 0, contacted: 0, result: 0, lastActive: '2026-08-29T13:53:00Z' },
+          { name: 'Manmeet Singh', assigned: 106, overdue: 100, worked: 0, contacted: 0, result: 0, lastActive: '2026-09-02T15:19:00Z' },
+          { name: 'Mamta Sales', assigned: 36, overdue: 23, worked: 0, contacted: 0, result: 0, lastActive: '2026-09-03T12:43:00Z' },
+        ],
+        yst: [
+          { name: 'Pradeep', assigned: 264, overdue: 238, worked: 0, contacted: 0, result: 0, lastActive: '2026-09-03T05:26:00Z' },
+          { name: 'Joginder', assigned: 126, overdue: 61, worked: 0, contacted: 0, result: 0, lastActive: '2026-09-02T13:46:00Z' },
+          { name: 'Satish', assigned: 111, overdue: 62, worked: 0, contacted: 0, result: 0, lastActive: '2026-08-29T13:53:00Z' },
+          { name: 'Manmeet Singh', assigned: 106, overdue: 100, worked: 0, contacted: 0, result: 0, lastActive: '2026-09-02T15:19:00Z' },
+          { name: 'Mamta Sales', assigned: 36, overdue: 23, worked: 0, contacted: 0, result: 0, lastActive: '2026-09-03T12:43:00Z' },
+        ],
+        '7d': [
+          { name: 'Pradeep', assigned: 264, overdue: 238, worked: 3, contacted: 5, result: 0, lastActive: '2026-09-03T05:26:00Z' },
+          { name: 'Joginder', assigned: 126, overdue: 61, worked: 1, contacted: 1, result: 0, lastActive: '2026-09-02T13:46:00Z' },
+          { name: 'Satish', assigned: 111, overdue: 62, worked: 2, contacted: 2, result: 0, lastActive: '2026-08-29T13:53:00Z' },
+          { name: 'Manmeet Singh', assigned: 106, overdue: 100, worked: 5, contacted: 5, result: 0, lastActive: '2026-09-02T15:19:00Z' },
+          { name: 'Mamta Sales', assigned: 36, overdue: 23, worked: 9, contacted: 19, result: 0, lastActive: '2026-09-03T12:43:00Z' },
+        ],
+      },
+    },
+  };
+
+  const toastEl = document.getElementById('toast');
+  let toastTimer;
+  function toast(msg) {
+    toastEl.textContent = msg;
+    toastEl.classList.add('show');
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => toastEl.classList.remove('show'), 1800);
+  }
+
+  function closeAllExpands() {
+    document.querySelectorAll('.expand').forEach((e) => e.classList.remove('open'));
+  }
+
+  function openExpand(expId, title, rows) {
+    const exp = document.getElementById(expId);
+    const wasOpen = exp.classList.contains('open') && exp.dataset.title === title;
+    closeAllExpands();
+    if (wasOpen) return;
+    exp.dataset.title = title;
+    const inner = exp.querySelector('.expand-inner');
+    const rowsHtml = (rows || [['Sample lead A', 'In progress', 'abhi']]).map(([n, s, m]) => `
+      <div class="xrow"><span class="xn">${n}</span><span class="xstatus">${s}</span><span class="xm">${m}</span></div>
+    `).join('');
+    inner.innerHTML = `
+      <div class="expand-head"><b>${title}</b><button class="expand-close">✕</button></div>
+      ${rowsHtml}
+    `;
+    inner.querySelector('.expand-close').addEventListener('click', () => exp.classList.remove('open'));
+    exp.classList.add('open');
+    setTimeout(() => exp.scrollIntoView({ behavior: 'smooth', block: 'nearest' }), 150);
+  }
+
+  function tile(item) {
+    return `<button class="tile ${item.k} sc-click" data-msg="${item.msg}" data-rows='${JSON.stringify(item.rows || []).replace(/'/g, "&#39;")}'>
+      <div class="v num">${item.v.toLocaleString('en-IN')}</div><div class="l">${item.l}</div>
+    </button>`;
+  }
+  function statCard(item) {
+    return `<button class="stat-card ${item.cls} sc-click" data-msg="${item.msg}">
+      <span class="sc-l">${item.l}</span><span class="sc-v num">${item.v.toLocaleString('en-IN')}</span>
+    </button>`;
+  }
+
+  const AVATAR_COLORS = ['#0074d9', '#0d7d6f', '#e0342b', '#f0a202', '#8e44ad', '#1a9c4e'];
+  function initials(name) { return name.split(' ').slice(0, 2).map((w) => w[0]).join('').toUpperCase(); }
+  function avatarColor(name) { let h = 0; for (const c of name) h = (h * 31 + c.charCodeAt(0)) % AVATAR_COLORS.length; return AVATAR_COLORS[h]; }
+  function relTime(iso) {
+    if (!iso) return { text: 'Kabhi nahi', stale: true };
+    const ms = Date.now() - new Date(iso).getTime();
+    const h = Math.floor(ms / 3600000);
+    if (h < 1) return { text: 'Abhi', stale: false };
+    if (h < 24) return { text: `${h}h pehle`, stale: false };
+    const days = Math.floor(h / 24);
+    return { text: `${days}d pehle`, stale: days > 3 };
+  }
+
+  function callingRow(r) {
+    const overduePct = r.assigned ? Math.round((r.overdue / r.assigned) * 100) : 0;
+    const riskCls = overduePct >= 70 ? 'hi' : overduePct >= 40 ? 'mid' : 'lo';
+    const riskIcon = riskCls === 'hi' ? 'fa-triangle-exclamation' : riskCls === 'mid' ? 'fa-circle-exclamation' : 'fa-circle-check';
+
+    const activityRate = r.assigned ? Math.round((r.worked / r.assigned) * 100) : 0;
+    const rateColor = activityRate >= 15 ? 'var(--green)' : activityRate >= 5 ? 'var(--amber)' : 'var(--red)';
+
+    const avgTouches = r.worked ? (r.contacted / r.worked).toFixed(1) : null;
+    const rt = relTime(r.lastActive);
+
+    return `
+      <tr>
+        <td><div class="cm-name"><span class="cm-avatar" style="background:${avatarColor(r.name)};">${initials(r.name)}</span><b>${r.name}</b></div></td>
+        <td class="ct-target">
+          <span class="n num">${r.assigned.toLocaleString('en-IN')} leads</span><br>
+          <span class="risk ${riskCls}"><i class="fas ${riskIcon}"></i>${r.overdue ? `${overduePct}% overdue` : 'up to date'}</span>
+        </td>
+        <td><span class="ct-worked num">${r.worked}</span></td>
+        <td><div class="ct-rate"><div class="ct-rate-track"><div class="ct-rate-fill" style="width:${activityRate}%; background:${rateColor};"></div></div><span class="ct-rate-pct num" style="color:${rateColor};">${activityRate}%</span></div></td>
+        <td>${avgTouches == null ? '<span style="color:var(--muted);">—</span>' : `<span class="ct-touches num">${avgTouches}<span class="x">x/lead</span></span>`}</td>
+        <td><span class="ct-result num">${r.result}</span></td>
+        <td><span class="ct-last ${rt.stale ? 'stale' : ''}">${rt.text}</span></td>
+      </tr>`;
+  }
+
+  let currentTeam = 'ldr';
+  let currentRange = 'today';
+  const RANGE_LABEL = { today: 'Today', yst: 'Yesterday', '7d': 'Last 7 Days', week: 'This Week', month: 'This Month' };
+
+  function renderCallingTable() {
+    const d = DATA[currentTeam];
+    // "This Week"/"This Month" ke liye abhi exact real numbers nahi khींche — 7-din ka data hi
+    // dikha rahe hain approx ke taur par (saaf note ke saath), taaki koi fake number na dikhe.
+    const rangeKey = (currentRange === 'week' || currentRange === 'month') ? '7d' : currentRange;
+    const rows = d.calling[rangeKey];
+    document.getElementById('resultColHead').textContent = d.resultLabel;
+    document.getElementById('workedColLabel').textContent = `Worked (${RANGE_LABEL[currentRange]})`;
+    document.getElementById('callingRangeNote').textContent = (currentRange === 'week' || currentRange === 'month')
+      ? `"${RANGE_LABEL[currentRange]}" abhi approx — last 7 din ke real numbers dikha rahe hain`
+      : `${RANGE_LABEL[currentRange]} · real data`;
+    const byRisk = [...rows].sort((a, b) => (b.overdue / (b.assigned || 1)) - (a.overdue / (a.assigned || 1)));
+    document.getElementById('callingBody').innerHTML = byRisk.map(callingRow).join('');
+  }
+
+  function render(team) {
+    currentTeam = team;
+    const d = DATA[team];
+    document.getElementById('teamNameA').textContent = team === 'ldr' ? 'LDR' : 'Sales';
+    document.getElementById('teamNameB').textContent = team === 'ldr' ? 'LDR' : 'Sales';
+    document.getElementById('teamNameC').textContent = d.reinqLabel;
+    document.getElementById('teamNameD').textContent = team === 'ldr' ? 'LDR' : 'Sales';
+
+    document.getElementById('snapTiles').innerHTML = d.snap.map(tile).join('');
+    document.getElementById('statusGrid').innerHTML = d.status.map(statCard).join('');
+    document.getElementById('reinqTiles').innerHTML = d.reinq.map(tile).join('');
+    document.getElementById('followupTiles').innerHTML = d.followup.map(tile).join('');
+    document.getElementById('dueTiles').innerHTML = d.due.map(tile).join('');
+    renderCallingTable();
+
+    const sel = document.getElementById('personSel');
+    sel.innerHTML = '<option value="">Poori Team</option>' + d.persons.map((p) => `<option>${p}</option>`).join('');
+
+    closeAllExpands();
+    wireClicks();
+  }
+
+  function wireClicks() {
+    document.querySelectorAll('.sc-click').forEach((el) => {
+      el.addEventListener('click', () => {
+        const msg = el.dataset.msg;
+        let rows = [];
+        try { rows = JSON.parse(el.dataset.rows || '[]'); } catch (e) {}
+        const section = el.closest('section');
+        const exp = section.querySelector('.expand');
+        if (exp) openExpand(exp.id, msg, rows.length ? rows : [['Yahaan asli leads ki list aayegi', '—', '']]);
+        else toast('→ ' + msg);
+      });
+    });
+  }
+
+  document.querySelectorAll('.team-switch button').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('.team-switch button').forEach((b) => b.classList.remove('on'));
+      btn.classList.add('on');
+      render(btn.dataset.team);
+      toast(`→ ${btn.dataset.team === 'ldr' ? 'LDR' : 'Sales'} Team data load ho raha hai`);
+    });
+  });
+
+  document.getElementById('personSel').addEventListener('change', (e) => {
+    toast(e.target.value ? `→ Sab sections "${e.target.value}" ke liye filter honge` : '→ Wapas poori team ka view');
+  });
+
+  document.querySelectorAll('.filterbar .fgroup .pill[data-range]').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('.filterbar .fgroup .pill[data-range]').forEach((b) => b.classList.remove('on'));
+      btn.classList.add('on');
+      currentRange = btn.dataset.range;
+      renderCallingTable();
+      toast(`→ Range badla: ${btn.textContent} — Team Workload Report neeche update ho gaya`);
+    });
+  });
+
+  render('ldr');
+
+  // ---------------- source / state charts (company-wide, real data) ----------------
+  // guarded: if the Chart.js CDN script fails to load for any reason, the rest of the
+  // page (already rendered above) must not be affected — only these two canvases stay blank.
+  try {
+    if (typeof Chart === 'undefined') throw new Error('Chart.js did not load');
+    new Chart(document.getElementById('sourceChart'), {
+      type: 'bar',
+      data: {
+        labels: ['Facebook', 'Instagram', 'Youtube', 'JustDial', 'Direct'],
+        datasets: [{ data: [1454, 915, 23, 1, 1], backgroundColor: col('--azure'), borderRadius: 4, maxBarThickness: 26 }],
+      },
+      options: {
+        indexAxis: 'y', maintainAspectRatio: false,
+        plugins: { legend: { display: false } },
+        scales: { x: { grid: { color: col('--line') } }, y: { grid: { display: false } } },
+      },
+    });
+
+    new Chart(document.getElementById('stateChart'), {
+      type: 'bar',
+      data: {
+        labels: ['Uttar Pradesh', 'Madhya Pradesh', 'Haryana', 'Rajasthan', 'Bihar', 'Delhi', 'Maharashtra', 'J&K', 'Punjab', 'Uttarakhand'],
+        datasets: [{ data: [229, 67, 66, 64, 63, 60, 36, 35, 29, 21], backgroundColor: col('--teal'), borderRadius: 4, maxBarThickness: 20 }],
+      },
+      options: {
+        indexAxis: 'y', maintainAspectRatio: false,
+        plugins: { legend: { display: false } },
+        scales: { x: { grid: { color: col('--line') } }, y: { grid: { display: false }, ticks: { font: { size: 10.5 } } } },
+      },
+    });
+  } catch (e) {
+    console.error('chart render skipped:', e.message);
+    document.querySelectorAll('#sourceChart, #stateChart').forEach((c) => {
+      c.replaceWith(Object.assign(document.createElement('p'), { textContent: 'Chart load nahi hua — numbers upar text mein hain.', style: 'color:var(--muted); font-size:12px;' }));
+    });
+  }
+</script>
