@@ -53,7 +53,14 @@ self.addEventListener('notificationclick', (event) => {
 // ---------- basic offline fallback (app-shell) ----------
 // Cache version — is file ka koi bhi change (jaise ye string) naya SW install trigger karta hai,
 // jo purana cache saaf karke fresh '/' rakh leta hai. Deploy pe bump kar dena.
-const SHELL_CACHE = 'paris-crm-shell-v4';
+const SHELL_CACHE = 'paris-crm-shell-v5';
+
+// Network bhi fail ho aur cache me kuch na ho (khaali storage / phone ka quota bhar gaya) to
+// `event.respondWith(undefined)` chala jaata tha -> browser "site can't be reached" dikhाता tha
+// (Chrome error: "Failed to convert value to 'Response'"). Ab hamesha ek REAL Response milegi.
+const offlineFallback = (msg) => new Response(msg || 'Offline — please check your connection.', {
+  status: 503, statusText: 'Offline', headers: { 'Content-Type': 'text/plain' },
+});
 
 self.addEventListener('install', (event) => {
   self.skipWaiting();
@@ -82,7 +89,7 @@ self.addEventListener('fetch', (event) => {
       fetch(request).then((res) => {
         if (res && res.ok) { const copy = res.clone(); caches.open(SHELL_CACHE).then((c) => c.put('/', copy)).catch(() => {}); }
         return res;
-      }).catch(() => caches.match('/')),
+      }).catch(() => caches.match('/').then((hit) => hit || offlineFallback('Aap offline ho — internet check karo.'))),
     );
     return;
   }
@@ -93,7 +100,7 @@ self.addEventListener('fetch', (event) => {
       caches.match(request).then((hit) => hit || fetch(request).then((res) => {
         if (res && res.ok) { const copy = res.clone(); caches.open(SHELL_CACHE).then((c) => c.put(request, copy)).catch(() => {}); }
         return res;
-      })),
+      })).catch(() => offlineFallback()),
     );
     return;
   }
@@ -103,6 +110,6 @@ self.addEventListener('fetch', (event) => {
     fetch(request).then((res) => {
       if (res && res.ok) { const copy = res.clone(); caches.open(SHELL_CACHE).then((c) => c.put(request, copy)).catch(() => {}); }
       return res;
-    }).catch(() => caches.match(request)),
+    }).catch(() => caches.match(request).then((hit) => hit || offlineFallback())),
   );
 });
