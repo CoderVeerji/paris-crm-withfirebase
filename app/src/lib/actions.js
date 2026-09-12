@@ -116,8 +116,14 @@ export async function logLeadAction(p) {
     // nayi followup date -> purane SLA alert-flags reset, warna agla cycle notify nahi karega
     upd.sla_followup_alerted = false;
     upd.sla_followup_due_alerted = false;
-  } else if (LOST.includes(stage) || isOrder || sentToReview) {
+  } else if (LOST.includes(stage) || isOrder || sentToReview || stage === 'qualified') {
+    // Qualify hote hi lead Sales ke paas fresh jaani chahiye — LDR ne "Call Back" ke liye jo
+    // purani date schedule ki thi wo yahan clear karo, warna Sales ko lead "already scheduled"
+    // dikhती (jaisi nayi nahi), aur uss purani date par SLA scan galat "followup due/overdue"
+    // notification bhi Sales ko bhej deta (l.sales_uid || l.ldr_uid pe fire hota hai).
     upd.next_followup = null;
+    upd.sla_followup_alerted = false;
+    upd.sla_followup_due_alerted = false;
   }
   if (formAnswers && typeof formAnswers === 'object') {
     upd.form_answers = formAnswers;
