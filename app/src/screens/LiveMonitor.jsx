@@ -29,17 +29,28 @@ const istMidnightMs = () => {
 const istHour = () => new Date(Date.now() + 5.5 * 3600000).getUTCHours();
 
 /** present + presence(last_seen) + real work(last_worked_at, today only) se state */
-function deriveState({ seenMs, workMs, present, todayStart, hour }) {
+function deriveState({ seenMs, workMs, present, todayStart, hour, loginMs }) {
   if (!present) return 'absent';
   const seenMin = seenMs ? (Date.now() - seenMs) / 60000 : Infinity;
+  // abhi-abhi (last LIVE_MIN) app use kar raha hai -> "Stuck 4h+" mein galat lagega, chahe
+  // uski last lead-work purani ho. Live ho to "Not working" mein dikhao, "Stuck" nahi.
+  const isLiveNow = seenMin < LIVE_MIN;
   const workedToday = workMs >= todayStart;
   const workMin = workedToday ? (Date.now() - workMs) / 60000 : Infinity;
   if (workMin < WORK_FRESH_MIN) return 'working';
   if (workMin < STALL_HRS * 60) return 'idle';          // aaj kaam kiya, thoda ruke (<4h)
-  if (workedToday) return 'stalled';                     // aaj kaam kiya phir 4h+ se ruke
+  if (workedToday) return isLiveNow ? 'idle' : 'stalled'; // aaj kaam kiya phir 4h+ se ruke
   // aaj abhi tak kuch nahi kiya:
   if (hour < 11) return seenMin < 8 ? 'idle' : 'offline'; // subah — abhi shuru nahi
-  return 'stalled';                                       // din chadh gaya, present, 0 kaam
+  // din chadh gaya, aaj 0 kaam — par "kab se" 0 kaam ye dekhna zaroori hai. `loginMs` (session
+  // start, ek baar set hota hai app khulne par) se pata chalta hai banda AAJ kab active hua —
+  // `seenMs` yahan kaam nahi aayega kyunki wo har 2 min heartbeat se refresh hota rehta hai
+  // (tab khuli rakhne se hamesha "abhi" dikhega). Abhi-abhi aaya ho (<4h) to seedha "stalled"
+  // mat bolo — bas "idle" (thoda time do). Isi wajah se "34 min pehle active" waala bhi galat
+  // se 4h+ Stuck mein aa raha tha.
+  const arrivedToday = loginMs >= todayStart ? loginMs : 0;
+  const arrivedMin = arrivedToday ? (Date.now() - arrivedToday) / 60000 : Infinity;
+  return (isLiveNow || arrivedMin < STALL_HRS * 60) ? 'idle' : 'stalled';
 }
 const STATE_LEGACY = { working: 'online', idle: 'idle', stalled: 'never', absent: 'offline', offline: 'offline' };
 const ST_CLS = { working: 'on', idle: 'idle', stalled: 'stall', offline: 'off', absent: 'off', never: 'stall' };
@@ -86,10 +97,11 @@ export default function LiveMonitor() {
 
       const list = users.map((u) => {
         const s = byUser[u.id] || { calls: 0, qualified: 0, closed: 0, revenue: 0 };
-        const seenMs = Math.max(tsMs(u.last_seen), tsMs(u.last_login));
+        const loginMs = tsMs(u.last_login);
+        const seenMs = Math.max(tsMs(u.last_seen), loginMs);
         const workMs = tsMs(u.last_worked_at);
         const present = (u.attendance || 'Present') === 'Present';
-        const state = deriveState({ seenMs, workMs, present, todayStart, hour });
+        const state = deriveState({ seenMs, workMs, present, todayStart, hour, loginMs });
         const live = present && seenMs && (Date.now() - seenMs) / 60000 < LIVE_MIN;
         const push = (u.fcm_tokens || []).length > 0;
         const result = u.role === 'sales' ? (s.closed || 0) : (s.qualified || 0);
