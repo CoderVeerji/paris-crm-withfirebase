@@ -946,7 +946,7 @@ exports.adminTask = onDocumentWritten('admin_tasks/{taskId}', async (event) => {
     await ref.set({ status: 'running', started_at: FV.serverTimestamp() }, { merge: true });
     let result;
     if (id === 'backfill') result = await doBackfill(String(after.from || ''), String(after.to || ''), progress);
-    else if (id === 'agg_today') { await aggregateDay(istDay()); await db.doc('meta/notify_state').set({ today_agg_at: Date.now() }, { merge: true }); result = { day: istDay() }; }
+    else if (id === 'agg_today') { const dstr = istDay(Date.now()); await aggregateDay(dstr); await db.doc('meta/notify_state').set({ today_agg_at: Date.now() }, { merge: true }); result = { day: dstr }; }
     else if (id === 'weekly') result = await buildWeekly({ week_num: after.week_num, year: after.year });
     else if (id === 'rescore') result = await rescoreAll(progress);
     else if (id === 'test_push') {
