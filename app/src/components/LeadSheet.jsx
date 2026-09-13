@@ -14,6 +14,7 @@ import CountryPicker from './CountryPicker';
 import WaIcon from './WaIcon';
 import { byCode, phoneLenOk, splitDigits } from '../lib/countries';
 import { markCalling } from '../lib/callLog';
+import { waLink } from '../lib/waMessage';
 
 const ACT_ICON = {
   created: 'fa-circle-plus', order: 'fa-sack-dollar', assigned: 'fa-user-check',
@@ -196,6 +197,9 @@ export default function LeadSheet({ lead: leadIn, onClose, onSaved }) {
     .filter(([, v]) => String(v || '').trim())
     .sort((a, b) => sigRank(a[0]) - sigRank(b[0]));
   const wa = (lead.phone_digits || '').replace(/\D/g, '');
+  const waHref = waLink(wa, cfg.settings?.Whatsapp_Template, {
+    name: lead.name, user: user.full_name, company: cfg.settings?.Company_Name,
+  });
 
   return (
     <div className="sheet-scrim" onClick={attemptClose}>
@@ -220,7 +224,7 @@ export default function LeadSheet({ lead: leadIn, onClose, onSaved }) {
 
         <div className="ls-quick">
           {dial && <a className="btn act-call" href={`tel:${dial}`} onClick={() => markCalling(lead.id)}><i className="fas fa-phone" /> {t('call')}</a>}
-          {wa && <a className="btn act-wa" href={`https://wa.me/${wa}`} target="_blank" rel="noreferrer"><WaIcon /> {t('whatsapp')}</a>}
+          {wa && <a className="btn act-wa" href={waHref} target="_blank" rel="noreferrer"><WaIcon /> {t('whatsapp')}</a>}
         </div>
 
         {answerStrip.length > 0 && (

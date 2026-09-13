@@ -12,6 +12,7 @@ import { bulkArchive, bulkAssign, softDeleteLead } from '../lib/admin';
 import { friendlyError } from '../lib/errmsg';
 import { usePagedList } from '../lib/usePagedList';
 import { markCalling } from '../lib/callLog';
+import { waLink } from '../lib/waMessage';
 import Pager from '../components/Pager';
 import LeadsSummary from '../components/LeadsSummary';
 import LeadSheet from '../components/LeadSheet';
@@ -501,12 +502,17 @@ function BulkAssignSheet({ cfg, busy, onClose, onGo }) {
 }
 
 export function LeadCard({ lead, t, onOpen, selMode, selected, statusMode = 'effective' }) {
+  const { user } = useAuth();
+  const cfg = useConfig();
   const st = statusMode === 'ldr' ? lead.status
     : statusMode === 'sales' ? (lead.sales_status || lead.status)
       : (lead.sales_status || lead.status);
   const [badge, strip] = stClass(st);
   const dialNum = lead.phone_raw || lead.phone || '';
   const waNum = (lead.phone_digits || '').replace(/\D/g, '');
+  const waHref = waLink(waNum, cfg.settings?.Whatsapp_Template, {
+    name: lead.name, user: user.full_name, company: cfg.settings?.Company_Name,
+  });
 
   const who = lead.sales_name || lead.ldr_name;
   const fu = lead.next_followup;
@@ -542,7 +548,7 @@ export function LeadCard({ lead, t, onOpen, selMode, selected, statusMode = 'eff
       {!selMode && (
         <div className="actions" onClick={(e) => e.stopPropagation()}>
           {dialNum && <a className="btn act-call" href={`tel:${dialNum}`} onClick={() => markCalling(lead.id)}><i className="fas fa-phone" /> {t('call')}</a>}
-          {waNum && <a className="btn act-wa" href={`https://wa.me/${waNum}`} target="_blank" rel="noreferrer" aria-label="WhatsApp"><WaIcon /></a>}
+          {waNum && <a className="btn act-wa" href={waHref} target="_blank" rel="noreferrer" aria-label="WhatsApp"><WaIcon /></a>}
           <button className="btn act-open" onClick={onOpen} aria-label="Details"><i className="fas fa-chevron-right" /></button>
         </div>
       )}
