@@ -65,6 +65,34 @@
       "queryScope": "COLLECTION",
       "fields": [
         {
+          "fieldPath": "ldr_uid",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "urgent_at",
+          "order": "ASCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "leads",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "sales_uid",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "urgent_at",
+          "order": "ASCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "leads",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
           "fieldPath": "attempts",
           "order": "ASCENDING"
         },

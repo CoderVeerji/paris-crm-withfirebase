@@ -862,10 +862,10 @@ async function buildWeekly(opts = {}) {
 // +weeklyReport) — 2 extra job ka ~₹17/month recurring lagta tha. Teeno roz-raat-wale maintenance kaam
 // hain, ek hi function mein same tarteeb se chalte hain — behavior bilkul same, sirf 1 scheduler job kam.
 exports.dailyMaintenance = onSchedule({ schedule: '0 1 * * *', timeZone: 'Asia/Kolkata' }, async () => {
-  // pichhle 5 din DOBARA aggregate karo — jin leads ka status baad me badla (fresh -> lost) un dino
-  // ka `dash` bhi current rahe. 5 din × ~2.5k reads = ~12k, ek baar raat me. Isse purane din
-  // "frozen" (status change reflect nahi hoga) — 5 din se purani lead ka status shayad hi badalta.
-  for (let d = 5; d >= 0; d--) {
+  // pichhle 1 din DOBARA aggregate karo (aaj + kal) — jin leads ka status baad me badla (fresh ->
+  // lost) un dino ka `dash` current rahe. Pehle 5 din tak jaate the (~11k reads/raat) — measured
+  // audit se pata chala 2+ din purani lead ka status shayad hi badalta hai, isliye 2 din kaafi hai.
+  for (let d = 1; d >= 0; d--) {
     // eslint-disable-next-line no-await-in-loop
     await aggregateDay(istDay(Date.now() - d * 86400000));
   }
@@ -1378,16 +1378,28 @@ async function maybeReportEmail(settings, nowMs) {
   }
 }
 
-// AAJ ka dash pre-agg refresh — har ~90 min (08:00–21:00 IST). Dashboard "today" isse padhta hai
-// (LIVE per-load query nahi — reads bachao). Manual "refresh" button ke liye bhi kaafi.
+// AAJ ka dash pre-agg refresh — har ~3 ghante (08:00–21:00 IST), aur sirf tab jab pichhle window
+// mein asal mein koi kaam hua ho. Dashboard "today" isse padhta hai (LIVE per-load query nahi —
+// reads bachao). Manual "refresh" button ke liye bhi kaafi.
 async function maybeRefreshToday(settings, nowMs) {
   const istNow = new Date(nowMs + IST);
   const hm = istNow.toISOString().slice(11, 16);
   if (hm < '08:30' || hm > '20:30') return; // raat 1 baje dailyMaintenance final version likhta hai
-  const gapMin = Number(settings.Today_Agg_Mins) || 120;
+  const gapMin = Number(settings.Today_Agg_Mins) || 180; // pehle 120 tha — audit se 180 kaafi nikla
   const stRef = db.doc('meta/notify_state');
   const st = (await stRef.get()).data() || {};
-  if (st.today_agg_at && (nowMs - st.today_agg_at) < gapMin * 60000) return;
+  const lastAt = st.today_agg_at || 0;
+  if (lastAt && (nowMs - lastAt) < gapMin * 60000) return;
+  // pichhle window mein koi activity hi nahi hui (lunch break / raat) -> dobara aggregate karne ka
+  // fayda nahi, purana dash already sahi hai. count() sirf 1 read leta hai, poori aggregateDay
+  // (~1-2k reads) bachane ke liye sasta check hai.
+  if (lastAt) {
+    const activityCount = (await db.collection('activity').where('at', '>', TS.fromMillis(lastAt)).count().get()).data().count;
+    if (activityCount === 0) {
+      await stRef.set({ today_agg_at: nowMs }, { merge: true }); // window aage khiskao, baar-baar check na ho
+      return;
+    }
+  }
   await stRef.set({ today_agg_at: nowMs }, { merge: true });
   await aggregateDay(istDay(nowMs));
   console.log('today dash refreshed');

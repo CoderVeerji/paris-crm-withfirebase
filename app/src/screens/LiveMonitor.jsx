@@ -9,7 +9,7 @@ import { updateUser } from '../lib/admin';
 import { toast } from '../toast';
 import { buildText, buildImage, shareOrSave, clockStr, dur } from '../lib/monitorReport';
 
-const RELOAD_MS = 90_000;
+const RELOAD_MS = 300_000; // 5 min — pehle 90s tha; screen khuli rehne par (admin din bhar) reads bachao
 const OD_CACHE_MS = 240_000;
 const LIVE_MIN = 10;     // app open in last 10 min      -> "LIVE" tag (no top card)
 const WORK_FRESH_MIN = 45; // worked a lead < 45 min ago  -> "working"

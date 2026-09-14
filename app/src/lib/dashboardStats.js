@@ -14,16 +14,27 @@ const cnt = async (...w) => (await getCountFromServer(query(collection(db, 'lead
 
 const CACHE_TTL = 45 * 60 * 1000; // 45 min — filter badalne / dubara khulne par dobara fetch nahi (reads bachao)
 // har deploy pe dashboard cache apne aap invalid — build-time key ka hissa hai.
-// (sessionStorage browser-reload pe bhi rehta hai; naya bundle = naya prefix = purana cache ignore.)
+// localStorage use karte hain (sessionStorage nahi) — phone par log app baar-baar khol/band karte
+// hain, tab-close hote hi sessionStorage mit jaata tha aur 45-min cache kabhi kaam hi nahi aata tha.
 const CACHE_VER = (typeof __BUILD_TIME__ !== 'undefined' ? String(__BUILD_TIME__) : 'v1').replace(/\D/g, '').slice(-8) || 'v1';
 const CK = (k) => `pc_${CACHE_VER}_${k}`;
+
+// Ek baar per app-load — purane build ke chhoote pc_ keys (jinka CACHE_VER ab match nahi karta)
+// saaf karo. localStorage sessionStorage jaisa apne-aap khaali nahi hota, har naye deploy ke baad
+// purani cache entries hamesha ke liye padi rehtin agar ye safai na ho.
+try {
+  for (let i = localStorage.length - 1; i >= 0; i--) {
+    const k = localStorage.key(i);
+    if (k && k.startsWith('pc_') && !k.startsWith(`pc_${CACHE_VER}_`)) localStorage.removeItem(k);
+  }
+} catch { /* private mode — kuch nahi */ }
 
 /** Refresh button dabaya — poora dashboard cache saaf, agli fetch fresh Firestore se. */
 export function bustDashCache() {
   try {
-    for (let i = sessionStorage.length - 1; i >= 0; i--) {
-      const k = sessionStorage.key(i);
-      if (k && k.startsWith('pc_')) sessionStorage.removeItem(k);
+    for (let i = localStorage.length - 1; i >= 0; i--) {
+      const k = localStorage.key(i);
+      if (k && k.startsWith('pc_')) localStorage.removeItem(k);
     }
   } catch { /* private mode — kuch nahi */ }
 }
@@ -31,14 +42,15 @@ export function bustDashCache() {
 function cached(rawKey, fn) {
   const key = CK(rawKey);
   try {
-    const raw = sessionStorage.getItem(key);
+    const raw = localStorage.getItem(key);
     if (raw) {
       const { at, v } = JSON.parse(raw);
       if (Date.now() - at < CACHE_TTL) return Promise.resolve(v);
+      localStorage.removeItem(key); // expire ho chuki — turant hata do
     }
   } catch { /* private mode / quota — bas fetch kar lo */ }
   return fn().then((v) => {
-    try { sessionStorage.setItem(key, JSON.stringify({ at: Date.now(), v })); } catch { /* ignore */ }
+    try { localStorage.setItem(key, JSON.stringify({ at: Date.now(), v })); } catch { /* ignore (quota/private) */ }
     return v;
   });
 }
@@ -470,7 +482,11 @@ export async function dashDayLive({ teamRole, memberUid, memberIds }, dayStr) {
     getDocs(query(...aParts)),
     getDocs(query(...bParts)).catch(() => ({ forEach: () => {}, size: 0 })),
     getDocs(query(collection(db, 'leads'), ...owner, where('created_at', '>=', rs), where('created_at', '<=', re), fbLimit(1500))),
-    getDocs(query(collection(db, 'leads'), ...owner, where('is_urgent', '==', true), fbLimit(1500))).catch(() => ({ forEach: () => {}, size: 0 })),
+    // `is_urgent` kabhi wapas false nahi hota (ek baar re-inquiry hui, hamesha true rehta hai) —
+    // isliye is_urgent==true se poori history mil jaati thi (Neelam jaisी purani LDR ke liye 269
+    // docs, har dashboard-load par). `urgent_at` par aaj ki range se seedha query karo — sirf AAJ
+    // ki re-inquiry chahiye, aur is_urgent==true hamesha implied hai (dono ek saath set hote hain).
+    getDocs(query(collection(db, 'leads'), ...owner, where('urgent_at', '>=', rs), where('urgent_at', '<=', re), fbLimit(1500))).catch(() => ({ forEach: () => {}, size: 0 })),
   ]);
 
   const touchCnt = {}; const dueSet = new Set();
