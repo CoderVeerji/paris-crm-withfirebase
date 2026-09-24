@@ -494,7 +494,14 @@ async function aggregateDay(dayStr) {
       // ownership check — lead is uid ki honi chahiye (ya usne touch ki)
       const owns = (isSalesU(uid) ? l.sales_uid === uid : l.ldr_uid === uid) || tset.has(lid);
       if (!owns) continue;
-      const schForThis = (schedUidByLead[lid] && schedUidByLead[lid].has(uid)) || dset.has(lid) || inDay(l.next_followup);
+      // NOTE: schedUidByLead (kisi PURANE din ki activity ka scheduled_for==aaj) jaan-boojh kar
+      // yahan shamil NAHI kiya — agar us schedule ke baad lead RESCHEDULE ho chuki (kisi aur din
+      // aage badha di gayi, aaj se PEHLE hi), to l.next_followup ab aaj nahi hoga aur wo activity
+      // record STALE ho chuka hai. Use yahan count karna galat-se "pending / Not Worked Yet"
+      // dikhata tha un leads ke liye jinhe waqt se pehle hi nibta diya gaya tha. `inDay(next_followup)`
+      // (abhi ka sach) + `dset` (aaj hi due thi aur aaj hi nibti) hi kaafi hain — genuinely
+      // aaj-scheduled lead ka next_followup abhi bhi aaj hi hoga jab tak wo touch na ho.
+      const schForThis = dset.has(lid) || inDay(l.next_followup);
       const freshToday = freshIdSet.has(lid);
       const closed = isClosedL(uid, l);
       const s = stOf(uid, l);

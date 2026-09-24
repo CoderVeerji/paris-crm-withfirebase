@@ -535,7 +535,10 @@ export async function dashDayLive({ teamRole, memberUid, memberIds }, dayStr) {
     const l = leadMap[id];
     if (!l || !ownsL(l)) continue;
     const touched = !!touchCnt[id];
-    const schFor = schedSet.has(id) || dueSet.has(id) || inDay(l.next_followup);
+    // schedSet (kisi PURANE din ki activity ka scheduled_for==aaj) jaan-boojh kar shamil nahi —
+    // agar us schedule ke baad lead waqt se pehle hi RESCHEDULE ho chuki (aaj se pehle), to
+    // l.next_followup ab aaj nahi hai aur schedSet ka signal STALE hai. [[dash-preagg-dual-copy]]
+    const schFor = dueSet.has(id) || inDay(l.next_followup);
     const closed = isClosed(l);
     const s = stOf(l);
     const blank = s === 'other';
