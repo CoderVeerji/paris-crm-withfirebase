@@ -50,7 +50,7 @@ service cloud.firestore {
                'sla_fresh_alerted', 'sla_followup_alerted', 'sla_followup_due_alerted',
                'sla_contact_alerted', 'sla_sales_alerted',
                'archived', 'archived_at', 'reinq_after_archive', 'reinq_after_archive_at', 'reinq_after_archive_count',
-               'status', 'sales_status', 'outcome', 'closed_at']))
+               'status', 'sales_status', 'outcome', 'closed_at', 'sales_open']))
         // Archived lead ko koi bhi provisioned user "dobara enquiry" ke roop me wapas la sakta hai
         // (WhatsApp campaign se reply aaya -> naya form bhardo). Sirf archived->unarchived path.
         || (isProvisioned()
@@ -70,7 +70,7 @@ service cloud.firestore {
                  'sla_fresh_alerted', 'sla_followup_alerted', 'sla_followup_due_alerted',
                  'sla_contact_alerted', 'sla_sales_alerted',
                  'archived', 'archived_at', 'reinq_after_archive', 'reinq_after_archive_at', 'reinq_after_archive_count',
-                 'status', 'sales_status', 'outcome', 'closed_at',
+                 'status', 'sales_status', 'outcome', 'closed_at', 'sales_open',
                  'ldr_uid', 'ldr_name', 'sales_uid', 'sales_name', 'assigned_sales_at']))
         ) && !(request.resource.data.diff(resource.data).affectedKeys().hasAny(['status']) && request.resource.data.status == '')
           && !(request.resource.data.diff(resource.data).affectedKeys().hasAny(['sales_status']) && request.resource.data.sales_status == '');

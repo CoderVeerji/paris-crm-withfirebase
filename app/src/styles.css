@@ -869,6 +869,45 @@ table.meca-t tr:last-child td { border-bottom: none; }
 .wk-ins.warn { background: #fff4e5; color: #9a5b0a; }
 .wk-ins.good { background: #e7f6ec; color: #146c37; }
 
+/* ---- MIS Report ---- */
+.mis-card { background: var(--card); border: 1px solid var(--line); border-radius: var(--radius); padding: 13px; box-shadow: var(--shadow-sm); margin-bottom: 10px; }
+.mis-card.mis-team { border-color: var(--navy-accent); background: color-mix(in srgb, var(--navy-accent) 5%, var(--card)); }
+.mis-card-name { font-weight: 700; color: var(--ink); margin-bottom: 9px; display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.mis-overall { font-family: 'IBM Plex Mono', monospace; font-size: 15px; font-weight: 800; white-space: nowrap; }
+.mis-overall em { font-style: normal; font-family: var(--sans, inherit); font-size: 9.5px; font-weight: 600; text-transform: uppercase; color: var(--muted); margin-left: 5px; letter-spacing: .03em; }
+table.mis-t th.mis-th-group { text-align: center; background: color-mix(in srgb, var(--navy-primary) 85%, #000); }
+/* Overall ek alag, badi badge hai — chhoti round `rep-chip` pills (Leads/Follow-ups Score) se
+   saaf alag dikhni chahiye, warna dono red/green pill jaisi lag kar confuse karti hain. */
+.mis-overall-chip { display: inline-block; font-family: 'IBM Plex Mono', monospace; font-size: 14px; font-weight: 800;
+  padding: 4px 10px; border-radius: 6px; border: 1.5px solid; background: transparent; }
+.mis-overall-chip.tone-good { color: var(--success); border-color: var(--success); }
+.mis-overall-chip.tone-wip { color: var(--warning); border-color: var(--warning); }
+.mis-overall-chip.tone-lost { color: var(--danger); border-color: var(--danger); }
+.mis-overall-chip:not(.tone-good):not(.tone-wip):not(.tone-lost) { color: var(--muted); border-color: var(--line); }
+.mis-metric + .mis-metric { margin-top: 11px; padding-top: 11px; border-top: 1px dashed var(--line); }
+.mis-metric-lbl { font-size: 11px; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); margin-bottom: 5px; }
+.mis-metric-nums { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; }
+.mis-num { background: var(--hover); border-radius: 8px; padding: 7px 4px; text-align: center; display: flex; flex-direction: column; gap: 2px; cursor: pointer; transition: transform .12s ease, box-shadow .12s ease; }
+.mis-num:hover { transform: translateY(-1px); box-shadow: var(--shadow-sm); }
+.mis-num:active { transform: scale(.97); }
+.mis-num b { font-family: 'IBM Plex Mono', monospace; font-size: 16px; color: var(--ink); }
+.mis-num span { font-size: 9.5px; color: var(--muted); text-transform: uppercase; }
+.mis-num:disabled { opacity: .55; cursor: default; }
+.mis-num:disabled:hover { transform: none; box-shadow: none; }
+.mis-score { border-radius: 8px; padding: 7px 4px; text-align: center; display: flex; flex-direction: column; gap: 2px; background: var(--hover); }
+.mis-score b { font-family: 'IBM Plex Mono', monospace; font-size: 16px; }
+.mis-score span { font-size: 9.5px; color: var(--muted); text-transform: uppercase; }
+.mis-score.tone-good { background: color-mix(in srgb, var(--success) 12%, var(--card)); }
+.mis-score.tone-wip { background: color-mix(in srgb, var(--warning) 14%, var(--card)); }
+.mis-score.tone-lost { background: color-mix(in srgb, var(--danger) 12%, var(--card)); }
+@media (max-width: 420px) { .mis-metric-nums { grid-template-columns: repeat(2, 1fr); } }
+.mis-tlink { color: var(--navy-accent); font-weight: 700; text-decoration: underline; text-underline-offset: 2px; cursor: pointer; }
+.mis-tlink:hover { opacity: .75; }
+.mis-tlink:disabled { color: var(--muted); text-decoration: none; opacity: .6; cursor: default; }
+.mis-stagebar { display: flex; flex-wrap: wrap; gap: 6px; }
+.mis-stagebar .chip b { margin-left: 5px; font-family: 'IBM Plex Mono', monospace; }
+.mis-stagebar .chip.active { background: var(--navy-accent); color: #fff; }
+
 /* ---------- dashboard greet + attendance ---------- */
 .dash-greet { display: flex; justify-content: space-between; align-items: center; gap: 10px; margin-bottom: 12px; }
 .att-pill { display: flex; align-items: center; gap: 6px; padding: 6px 12px; border-radius: 999px; font-size: 12.5px; font-weight: 700;

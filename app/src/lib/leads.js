@@ -93,6 +93,7 @@ export async function createLead(d, actor, role) {
     is_urgent: false, needs_review: !(d.name || '').trim(), dup_of: null,
     updated_at: serverTimestamp(),
   };
+  lead.sales_open = isSalesOpen(lead.status, lead.sales_status);
   for (const [k, label] of Object.entries(FLAT_FIELDS)) lead[k] = String(answers[label] || '').trim();
   const sc = computeScore(lead);
   lead.score = sc.score; lead.tier = sc.tier;
@@ -158,6 +159,7 @@ export async function reopenArchivedLead(leadId, d, actor, role) {
     sla_fresh_alerted: false, sla_followup_alerted: false, sla_followup_due_alerted: false, sla_contact_alerted: false,
   };
   upd.closed_at = null;
+  upd.sales_open = isSalesOpen(upd.status, upd.sales_status);
   for (const [k, label] of Object.entries(FLAT_FIELDS)) upd[k] = String(answers[label] || prev[k] || '').trim();
   const sc = computeScore({ ...prev, ...upd });
   upd.score = sc.score; upd.tier = sc.tier;
@@ -204,6 +206,16 @@ function scopeConstraints({ role, uid, view }) {
 
 // Sales ne "start" kiya — inme se koi sales_status ho to lead ab "new / just qualified" nahi
 export const SALES_STARTED = ['hot lead', 'visit customer', 'visit done', 'video call', 'followup', 'follow up', 'call back', 'order done', 'order won', 'lost', 'dead'];
+
+/** `sales_open` field ki single source of truth — "Sales ke paas hai, abhi tak Sales ne haath
+ *  nahi lagaya" (yani "New Qualified" pool mein dikhni chahiye). Jahan bhi status/sales_status
+ *  likhte ho, ye dobara chalao — sirf isi se lead.status==qualified + sales_status abhi khaali
+ *  (ya SALES_STARTED mein na ho) waali leads ka "server-side" flag sahi rehta hai, koi aur jagah
+ *  ye formula copy-paste mat karna (drift se bachne ke liye — [[dash-preagg-dual-copy]] jaisa hi). */
+export function isSalesOpen(status, salesStatus) {
+  return String(status || '').toLowerCase().trim() === 'qualified'
+    && !SALES_STARTED.includes(String(salesStatus || '').toLowerCase().trim());
+}
 
 /** view-specific extra filters. `{ parts, post }` — post = client-side filters (index bachane ke liye). */
 function viewConstraints(view) {
@@ -366,7 +378,11 @@ const ALL_TTL = 30 * 60 * 1000;
 
 const VIEW_ALL_PARTS = {
   fresh: () => [where('status', 'in', ['fresh', 'new'])],
-  sales_fresh: () => [where('status', '==', 'qualified')],
+  // Pehle: status==qualified (sales_uid ki SAARI-lifetime qualified leads, phir client-side
+  // 76% phenk deta tha jo already-worked thin — sabse bada Firestore-read leak tha). Ab
+  // `sales_open==true` seedha sirf "abhi bhi khuli" leads deta hai — [[isSalesOpen]] hi
+  // ise likhta hai, har status/sales_status change par recompute hoti hai.
+  sales_fresh: () => [where('sales_open', '==', true)],
 };
 
 /** @returns {Promise<{ rows, capped }>} */

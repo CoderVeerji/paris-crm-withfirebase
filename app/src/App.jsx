@@ -32,6 +32,7 @@ import Analytics from './screens/Analytics';
 import DataHealth from './screens/DataHealth';
 import LiveMonitor from './screens/LiveMonitor';
 import WeeklyReport from './screens/WeeklyReport';
+import MisReport from './screens/MisReport';
 import Reports from './screens/Reports';
 import Help from './screens/Help';
 import Tickets from './screens/Tickets';
@@ -52,6 +53,7 @@ const MENU = [
   { sep: true, perm: 'reports:monitor' },
   { key: 'monitor', tKey: 'mMonitor', icon: 'fa-satellite-dish', perm: 'reports:monitor' },
   { key: 'weekly', tKey: 'mWeekly', icon: 'fa-file-lines', perm: 'reports:weekly' },
+  { key: 'mis', tKey: 'mMis', icon: 'fa-clipboard-check', perm: 'reports:weekly' },
   { key: 'meca', tKey: 'mMeca', icon: 'fa-chart-line', perm: 'reports:meca' },
   { key: 'analytics', tKey: 'mAnalytics', icon: 'fa-chart-pie', perm: 'reports:analytics' },
   { key: 'reports', tKey: 'mReports', icon: 'fa-file-export', perm: 'reports:export' },
@@ -277,6 +279,7 @@ export default function App() {
             case 'datahealth': return <DataHealth />;
             case 'monitor': return <LiveMonitor />;
             case 'weekly': return <WeeklyReport />;
+            case 'mis': return <MisReport />;
             case 'reports': return <Reports />;
             case 'help': return <Help />;
             case 'tickets': return <Tickets />;

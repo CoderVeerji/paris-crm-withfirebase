@@ -4,6 +4,7 @@ import {
 } from 'firebase/firestore';
 import { db } from '../firebase';
 import { computeScore } from './scoring';
+import { isSalesOpen } from './leads';
 
 const LOST = ['lost', 'dead'];
 
@@ -141,6 +142,11 @@ export async function logLeadAction(p) {
   }
   if (stage === 'qualified') upd.qualified_at = upd.qualified_at || now;
   if (LOST.includes(stage)) { upd.closed_at = now; upd.outcome = 'lost'; }
+  // `sales_open` — "Sales ke paas hai, abhi tak Sales ne haath nahi lagaya" (New Qualified pool).
+  // Isi ek write-path se har action ke baad dobara sahi computed hota hai — LDR qualify kare to
+  // true ho jaati hai, Sales apna pehla action le to false. [[dash-preagg-dual-copy]]-jaisa hi
+  // ek shared-formula rule, taaki do jagah alag-alag definition drift na kare.
+  upd.sales_open = isSalesOpen(isSales ? (lead.status || '') : upd.status, isSales ? upd.sales_status : (lead.sales_status || ''));
 
   // 3) order
   if (isOrder && orderAmount > 0) {
@@ -225,6 +231,12 @@ export async function markUrgent(lead, actor, remark, newAssignee) {
     if (lead.sales_uid) upd.sales_status = 'followup';
     else upd.status = 'call back';
   }
+
+  // sales_status/status yahan touch ho sakti hai — sales_open dobara recompute, upar wale
+  // sabhi paths mein sales_status 'followup' set hoti hai (kabhi khaali nahi chhodi), isliye
+  // ye yahan hamesha false hi aata hai — matlab urgent hand-off "New Qualified" pool mein nahi
+  // dikhti (sahi hai, isse turant kaam chahiye, "abhi tak untouched" list mein nahi).
+  upd.sales_open = isSalesOpen(upd.status !== undefined ? upd.status : (lead.status || ''), upd.sales_status !== undefined ? upd.sales_status : (lead.sales_status || ''));
 
   batch.update(leadRef, upd);
   if (lead.phone_digits) {
