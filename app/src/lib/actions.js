@@ -140,6 +140,7 @@ export async function logLeadAction(p) {
   upd.tier = tier;
   if (assignSalesUid) {
     upd.sales_uid = assignSalesUid;
+    if (assignSalesName) upd.sales_name = assignSalesName; // list/filters mein naam sahi dikhe
     upd.assigned_sales_at = now;
   }
   if (stage === 'qualified') upd.qualified_at = upd.qualified_at || now;
@@ -158,8 +159,8 @@ export async function logLeadAction(p) {
       lead_name: lead.name || '',
       order_date: now,
       amount: orderAmount,
-      sales_uid: actor.uid,
-      sales_name: actor.name || '',
+      sales_uid: lead.sales_uid || actor.uid, // order lead ke sales owner ke naam (admin/md ne daala ho tab bhi)
+      sales_name: (lead.sales_uid ? lead.sales_name : actor.name) || actor.name || '',
       remark: remark.trim().slice(0, 300),
       source: 'app',
     });
@@ -175,6 +176,13 @@ export async function logLeadAction(p) {
   if (actor.uid) batch.set(doc(db, 'users', actor.uid), { last_worked_at: now }, { merge: true });
 
   batch.update(leadRef, upd);
+  // phone_index (reverse-lookup) mein stage/owner sync — duplicate-check pe purana stage na dikhe
+  if (lead.phone_digits && (isSales ? upd.sales_status : upd.status)) {
+    batch.set(doc(db, 'phone_index', lead.phone_digits), {
+      stage: upd.sales_status || upd.status || '',
+      owner_name: upd.sales_name || lead.sales_name || upd.ldr_name || lead.ldr_name || '',
+    }, { merge: true });
+  }
   await batch.commit();
   return { sentToReview };
 }
@@ -206,10 +214,11 @@ export async function markUrgent(lead, actor, remark, newAssignee) {
     next_followup: now,
     updated_at: now, last_action_at: now,
     last_action_by: actor.uid, last_action_by_name: actor.name || '',
-    outcome: '', closed_at: null,
     sla_fresh_alerted: false, sla_followup_alerted: false,
     sla_followup_due_alerted: false, // re-inquiry par followup reminder dobara arm
   };
+  // sirf lost/dead lead ko wapas khola jaa raha ho to outcome reset; customer (order wali) ka outcome na chhedo
+  if (lead.outcome === 'lost' || lead.archived) { upd.outcome = ''; upd.closed_at = null; }
   if (fromArchive) {
     // archive (WhatsApp campaign) ke baad customer dobara aaya -> list me wapas + track flag
     upd.archived = false;
@@ -238,7 +247,9 @@ export async function markUrgent(lead, actor, remark, newAssignee) {
   // sabhi paths mein sales_status 'followup' set hoti hai (kabhi khaali nahi chhodi), isliye
   // ye yahan hamesha false hi aata hai — matlab urgent hand-off "New Qualified" pool mein nahi
   // dikhti (sahi hai, isse turant kaam chahiye, "abhi tak untouched" list mein nahi).
-  upd.sales_open = isSalesOpen(upd.status !== undefined ? upd.status : (lead.status || ''), upd.sales_status !== undefined ? upd.sales_status : (lead.sales_status || ''));
+  if (upd.status !== undefined || upd.sales_status !== undefined) {
+    upd.sales_open = isSalesOpen(upd.status !== undefined ? upd.status : (lead.status || ''), upd.sales_status !== undefined ? upd.sales_status : (lead.sales_status || ''));
+  }
 
   batch.update(leadRef, upd);
   if (lead.phone_digits) {

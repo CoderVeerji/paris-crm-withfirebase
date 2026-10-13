@@ -1,8 +1,10 @@
 /** rows -> CSV string. Har cell quote hota hai agar usme comma / quote / newline ho. */
 export function toCsv(headers, rows) {
   const esc = (v) => {
-    const s = v == null ? '' : String(v);
-    return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+    let s = v == null ? '' : String(v);
+    // Excel formula-injection roko: = ya @ se shuru, ya +/- ke baad phone/number jaisa na ho to ' laga do
+    if (/^[=@]/.test(s) || /^[+-](?![\d\s().-]+$)/.test(s)) s = "'" + s;
+    return /[",\r\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
   };
   const lines = [headers.map(esc).join(',')];
   rows.forEach((r) => lines.push(r.map(esc).join(',')));

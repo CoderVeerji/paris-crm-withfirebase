@@ -960,7 +960,7 @@ const STR = {
     dRefresh:'Refresh', daTotalLeads:'Total Leads', daPipelineNow:'abhi ka pipeline · poori book',
     daStatusInRange:'is range mein aayi', daRangeHint:'Sab kuch chuni hui range ke hisaab se — "Sab" chuno to lifetime total.',
     daRepDaysMissing:'Is range ke {n} din ka pre-computed data abhi nahi hai — sahi number ke liye backfill chalao (Settings → Tools).',
-    dFilters:'Filters', dDateFrom:'From date', dDateTo:'To date', dClear:'Hatao',
+    dFilters:'Filters', dDateFrom:'From date', dDateTo:'To date', dClear:'Saaf karo',
     crTarget:'Assigned Target', crWorked:'Worked Leads', crContacted:'Leads Contacted', crWinRate:'Win Rate', crOffbook:'Off-schedule',
     daActionable:'Detailed Actionable Leads', daFiltered:'Filtered View',
     daRangeTooBig:'Range too large — total dikha rahe hain. Breakdown ke liye chhoti range chuno.',

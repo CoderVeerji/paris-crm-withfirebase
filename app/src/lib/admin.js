@@ -2,12 +2,12 @@
 import {
   initializeApp, getApps, getApp,
 } from 'firebase/app';
-import { getAuth, createUserWithEmailAndPassword, signOut, sendPasswordResetEmail } from 'firebase/auth';
+import { getAuth, connectAuthEmulator, createUserWithEmailAndPassword, signOut, sendPasswordResetEmail } from 'firebase/auth';
 import {
   doc, collection, getDoc, getDocs, setDoc, updateDoc, deleteDoc, documentId,
   query, where, writeBatch, serverTimestamp, addDoc, orderBy, limit, startAfter, increment,
 } from 'firebase/firestore';
-import { db, auth } from '../firebase';
+import { db, auth, EMU } from '../firebase';
 import { computeScore } from './scoring';
 import { revDigits } from './leads';
 
@@ -18,7 +18,9 @@ function secondaryAuth() {
   const primary = getApp();
   const name = 'secondary';
   const app = getApps().find((a) => a.name === name) || initializeApp(primary.options, name);
-  return getAuth(app);
+  const a = getAuth(app);
+  if (EMU && !a.emulatorConfig) connectAuthEmulator(a, 'http://127.0.0.1:9099', { disableWarnings: true }); // local test lab
+  return a;
 }
 
 /* ---------- AUDIT ---------- */

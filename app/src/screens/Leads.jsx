@@ -60,7 +60,7 @@ export default function Leads({ initialView = 'all' }) {
   const touchY = useRef(null);
 
   // ---- All Leads: filters + saved-default (star) + view type ----
-  const readPref = () => { try { return JSON.parse(localStorage.getItem('pc_leads_pref') || 'null'); } catch { return null; } };
+  const readPref = () => { try { return JSON.parse(localStorage.getItem('pc_leads_pref_' + (user?.id || user?.uid || '')) || 'null'); } catch { return null; } };
   const pref0 = isAllLeads ? readPref() : null;
   // non-oversight ka team locked hai — ldr sirf 'ldr', sales sirf 'sales' dekh sakta hai
   const lockedTeam = role === 'sales' ? 'sales' : role === 'ldr' ? 'ldr' : '';
@@ -76,10 +76,10 @@ export default function Leads({ initialView = 'all' }) {
   function applyStatusCard(f) { setTeam(lockedTeam || f.team || ''); setStatus(f.status || ''); setFlag(f.flag || ''); setMember(''); }
 
   function saveDefault() {
-    try { localStorage.setItem('pc_leads_pref', JSON.stringify({ team, status, flag, member })); setSaved(true); toast(t('lfSavedOk')); }
+    try { localStorage.setItem('pc_leads_pref_' + (user?.id || user?.uid || ''), JSON.stringify({ team, status, flag, member })); setSaved(true); toast(t('lfSavedOk')); }
     catch { /* private mode */ }
   }
-  function clearDefault() { try { localStorage.removeItem('pc_leads_pref'); } catch { /* ignore */ } setSaved(false); }
+  function clearDefault() { try { localStorage.removeItem('pc_leads_pref_' + (user?.id || user?.uid || '')); } catch { /* ignore */ } setSaved(false); }
 
   const ldrPeople = useMemo(() => ldrUsers(cfg), [cfg.users]);
   const salesPeople = useMemo(() => salesUsers(cfg), [cfg.users]);
@@ -105,8 +105,8 @@ export default function Leads({ initialView = 'all' }) {
   const { rows, page, loading, hasNext, hasPrev, err: loadErr, goNext, goPrev, reload } = usePagedList(fetchPage, [role, user.id, view, JSON.stringify(filters)]);
   const err = loadErr ? (loadErr.code === 'failed-precondition' ? t('indexNeeded') : t('loadFail')) : '';
 
-  function nextPage() { setSel(new Set()); goNext(); }
-  function prevPage() { setSel(new Set()); goPrev(); }
+  function nextPage() { goNext(); }
+  function prevPage() { goPrev(); }
 
   // All Leads — status-wise clickable count cards (upar). Har status 1 count(), 15-min cached.
   const [statusCounts, setStatusCounts] = useState(null);
@@ -378,7 +378,7 @@ export default function Leads({ initialView = 'all' }) {
             <select className="form-control lf-sel" value={member} onChange={(e) => {
               const m = e.target.value; setMember(m);
               const u = people.find((x) => x.id === m);
-              if (u && !team) setTeam(u.role === 'sales' ? 'sales' : 'ldr'); // team khaali ho to member ke role wali team lagao
+              if (u && !team) { setTeam(u.role === 'sales' ? 'sales' : 'ldr'); setStatus(''); setFlag(''); } // team khaali ho to member ke role wali team lagao
             }}>
               <option value="">{t('lfAllPeople')}</option>
               {people.map((u) => <option key={u.id} value={u.id}>{u.full_name}</option>)}

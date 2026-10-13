@@ -282,9 +282,14 @@ function allLeadsConstraints({ team, status, flag, member }) {
       else if (val === 'dead') post.push((l) => ['dead', 'lost'].includes(String(l.status || '').toLowerCase()));
       else post.push((l) => String(l.status || '').toLowerCase() === val);
     } else if (side === 'sales' && val === 'new') {
-      post.push((l) => String(l.status || '').toLowerCase() === 'qualified' && !SALES_STARTED.includes(String(l.sales_status || '').toLowerCase()));
+      post.push((l) => isSalesOpen(l.status, l.sales_status));
     } else if (side === 'sales' && val) {
       post.push((l) => String(l.sales_status || '').toLowerCase() === val);
+    } else if (team === 'sales') {
+      post.push((l) => String(l.status || '').toLowerCase() === 'qualified'); // count (countLeadsForFilter) jaisa hi
+    } else if (team === 'ldr') {
+      const LDRS = ['fresh', 'new', 'call back', 'callback', 'no answer', 'dead', 'lost'];
+      post.push((l) => LDRS.includes(String(l.status || '').toLowerCase()));
     }
     return { parts: out, post };
   }
@@ -298,7 +303,7 @@ function allLeadsConstraints({ team, status, flag, member }) {
   }
   if (side === 'sales' && val === 'new') {
     out.push(where('status', '==', 'qualified'), orderBy('created_at', 'desc'));
-    post.push((l) => !SALES_STARTED.includes(String(l.sales_status || '').toLowerCase()));
+    post.push((l) => isSalesOpen(l.status, l.sales_status));
     return { parts: out, post };
   }
   if (side === 'sales' && val) {
@@ -328,7 +333,7 @@ export async function countLeadsForFilter({ role, uid, filters }) {
     else if (flag === 'urgent') w.push(where('is_urgent', '==', true));
     else if (flag === 'review') w.push(where('review_queue', '==', true));
     else if (flag === 'needs_review') w.push(where('needs_review', '==', true));
-    else if (flag === 'overdue') w.push(where('next_followup', '<', new Date()), where('outcome', '==', ''));
+    else if (flag === 'overdue') w.push(where('next_followup', '<', new Date()), where('outcome', '==', '')); // archived yahan nahi (naya index chahiye; archived leads ka outcome 'lost' hota hai, to wo waise bhi bahar)
     else if (side === 'ldr' && val) {
       if (val === 'fresh') w.push(where('status', 'in', ['fresh', 'new']));
       else if (val === 'dead' || val === 'lost') w.push(where('status', 'in', ['dead', 'lost']));
@@ -338,6 +343,8 @@ export async function countLeadsForFilter({ role, uid, filters }) {
     else if (team === 'sales') w.push(where('status', '==', 'qualified'));
     else if (team === 'ldr') w.push(where('status', 'in', ['fresh', 'new', 'call back', 'callback', 'no answer', 'dead', 'lost']));
   }
+  // archived leads list se chhupi hoti hain — count mein bhi nahi (pehle pill/cards list se zyada dikhate the)
+  if (flag !== 'archived' && flag !== 'overdue') w.push(where('archived', '==', false));
   const r = await getCountFromServer(query(collection(db, 'leads'), ...w));
   return r.data().count;
 }
@@ -354,7 +361,7 @@ export async function fetchLeadsPage({ role, uid, view = 'all', filters = null, 
   } else {
     extra = viewConstraints(view);
     // "New Qualified Leads" — Sales ne start nahi kiya
-    if (view === 'sales_fresh') post.push((l) => !SALES_STARTED.includes(String(l.sales_status || '').toLowerCase().trim()));
+    if (view === 'sales_fresh') post.push((l) => isSalesOpen(l.status, l.sales_status));
   }
   // LDR ke views ko uske apne kaam tak seemit rakho (rules allow karti hain zyada, par UX galat lagta hai):
   //  - Fresh Pool: sirf UN-CLAIMED fresh leads (ya jo khud uski hai) — doosre LDR ki claimed fresh nahi
@@ -366,22 +373,35 @@ export async function fetchLeadsPage({ role, uid, view = 'all', filters = null, 
   // Archived leads normal views/filters me kabhi nahi — sirf "Archived" flag chuna ho tabhi.
   if (!archivedView) post.push((l) => !l.archived);
   const over = post.length ? 4 : 1;
-  const parts = [
+  const base = [
     collection(db, 'leads'),
     ...(archivedView ? [] : scopeConstraints({ role, uid, view })),
     ...extra,
-    ...(cursor ? [startAfter(cursor)] : []),
-    limit(pageSize * over),
   ];
-  const snap = await getDocs(query(...parts));
-  const rawCount = snap.docs.length;
-  let docs = snap.docs;
-  if (post.length) docs = docs.filter((d) => { const l = d.data(); return post.every((f) => f(l)); });
-  const rows = docs.slice(0, pageSize).map((d) => ({ id: d.id, ...d.data() }));
+  const BATCH = pageSize * over;
+  // Raw docs batch mein laao, client-side filter lagao; jab tak pageSize+1 filtered rows na mil jaayein (ya
+  // data khatam na ho) agla batch laate raho (max 5 round) — taaki heavy filter pe chhote/khaali pages na aayein.
+  // ⚠️ Cursor = aakhri DIKHAI GAYI doc (raw fetch ki aakhri nahi). Pehle raw 100 mein se sirf 25 dikhate the par
+  // cursor 100vi pe rakhte the — beech ki ~75% leads kabhi nahi dikhti thin, aur 100 se kam raw docs hon to
+  // Next button bhi nahi aata tha.
+  let cur = cursor; let lastRaw = null; let exhausted = false; let rounds = 0;
+  const kept = [];
+  while (kept.length <= pageSize && !exhausted && rounds < (post.length ? 5 : 1)) {
+    rounds += 1;
+    // eslint-disable-next-line no-await-in-loop
+    const snap = await getDocs(query(...base, ...(cur ? [startAfter(cur)] : []), limit(BATCH)));
+    const raw = snap.docs.length;
+    kept.push(...(post.length ? snap.docs.filter((d) => { const l = d.data(); return post.every((f) => f(l)); }) : snap.docs));
+    if (raw) { lastRaw = snap.docs[raw - 1]; cur = lastRaw; }
+    if (raw < BATCH) exhausted = true;
+  }
+  const usedDocs = kept.slice(0, pageSize);
+  const rows = usedDocs.map((d) => ({ id: d.id, ...d.data() }));
+  const moreFiltered = kept.length > pageSize;
   return {
     rows,
-    cursor: snap.docs.length ? snap.docs[snap.docs.length - 1] : null,
-    done: rawCount < pageSize * over,
+    cursor: moreFiltered ? usedDocs[usedDocs.length - 1] : lastRaw,
+    done: !moreFiltered && exhausted,
   };
 }
 
@@ -436,7 +456,7 @@ export async function fetchLeadsAll({ role, uid, view, cap = 2000, force = false
   const snap = await getDocs(query(...parts));
   let docs = snap.docs.map((d) => ({ id: d.id, ...d.data() })).filter((l) => !l.archived);
   if (view === 'sales_fresh') {
-    docs = docs.filter((l) => !SALES_STARTED.includes(String(l.sales_status || '').toLowerCase().trim()));
+    docs = docs.filter((l) => isSalesOpen(l.status, l.sales_status));
   }
   // Fresh Pool: LDR ko sirf un-claimed (ya apni) fresh leads — fetchLeadsPage jaisa hi
   if (role === 'ldr' && view === 'fresh') {
@@ -488,7 +508,7 @@ export async function leadStatusCounts({ role, uid, team = '', member = '', forc
 
   const scope = scopeConstraints({ role, uid, view: 'all' });
   const memberW = member ? [where(team === 'sales' ? 'sales_uid' : 'ldr_uid', '==', member)] : [];
-  const base = [collection(db, 'leads'), ...scope, ...memberW];
+  const base = [collection(db, 'leads'), ...scope, ...memberW, where('archived', '==', false)];
   const c = (w) => getCountFromServer(query(...base, ...w)).then((r) => r.data().count).catch(() => 0);
 
   // LDR user ko sirf apna kaam (fresh/call back/lost); Sales user ko sirf sales stages.
@@ -514,7 +534,8 @@ export async function leadStatusCounts({ role, uid, team = '', member = '', forc
       { key: 'order done', label: 'Order Done', w: [where('sales_status', '==', 'order done')], filter: { team: 'sales', status: 'sales:order done' } },
     );
   }
-  defs.push(isSalesUser
+  // Sales team (ya sales member) ke liye "Lost" = sales_status lost; LDR/All ke liye status dead/lost
+  defs.push((isSalesUser || team === 'sales')
     ? { key: 'lost', label: 'Lost / Dead', w: [where('sales_status', 'in', ['lost', 'dead'])], filter: { team: 'sales', status: 'sales:lost' } }
     : { key: 'lost', label: 'Lost / Dead', w: [where('status', 'in', ['dead', 'lost'])], filter: { team: 'ldr', status: 'ldr:dead' } });
 

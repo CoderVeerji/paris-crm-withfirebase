@@ -43,6 +43,7 @@ export async function fetchFollowups({ kind, mode = 'all', from = '', to = '', s
   let rows = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
 
   rows = rows.filter((l) => {
+    if (l.archived) return false; // archived lead ka followup kaam ki list mein nahi
     if (kind === 'sales') {
       const ss = String(l.sales_status || '').toLowerCase().trim();
       // Order Done + repeat-order followup date: sirf tab dikhao jab date order/action ke BAAD ki set hui ho
