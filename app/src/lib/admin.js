@@ -95,7 +95,10 @@ export async function sendReset(email, actor) {
 /** kisi user ki saari leads (LDR + Sales) doosre user ko transfer */
 export async function transferLeads(fromUid, toUid, actor) {
   let moved = 0;
+  const toSnap = await getDoc(doc(db, 'users', toUid));
+  const toName = toSnap.exists() ? (toSnap.data().full_name || '') : '';
   for (const field of ['ldr_uid', 'sales_uid']) {
+    const nameField = field === 'ldr_uid' ? 'ldr_name' : 'sales_name';
     let last = null;
     // eslint-disable-next-line no-constant-condition
     while (true) {
@@ -104,7 +107,7 @@ export async function transferLeads(fromUid, toUid, actor) {
       const snap = await getDocs(query(...parts));
       if (snap.empty) break;
       const b = writeBatch(db);
-      snap.docs.forEach((d) => b.update(d.ref, { [field]: toUid, updated_at: serverTimestamp() }));
+      snap.docs.forEach((d) => b.update(d.ref, { [field]: toUid, [nameField]: toName, updated_at: serverTimestamp() }));
       await b.commit();
       moved += snap.size;
       last = snap.docs[snap.docs.length - 1];
@@ -223,6 +226,37 @@ export async function restoreLead(recycleId, actor) {
 export async function fetchRecycle() {
   const snap = await getDocs(query(collection(db, 'recycle'), orderBy('deleted_at', 'desc'), limit(100)));
   return snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+}
+
+/** Bahut saari leads ek saath recycle bin mein — chunks mein batch (har lead alag getDoc+commit+audit
+ *  nahi, jo sau-do-sau leads pe minuton lagata aur har lead ka alag audit-entry banata tha). */
+export async function bulkSoftDelete(leads, actor, onProgress) {
+  const CH = 120; // 120 leads x (recycle set + lead delete + phone_index delete) = 360 ops < 500 batch limit
+  let done = 0;
+  for (let i = 0; i < leads.length; i += CH) {
+    const part = leads.slice(i, i + CH);
+    // phone_index ka owner ek saath padho (30-30 ke `in` chunks) — sirf apni hi lead ka index hatao
+    const digits = [...new Set(part.map((l) => l.phone_digits).filter(Boolean))];
+    const idxOwner = {};
+    for (let j = 0; j < digits.length; j += 30) {
+      // eslint-disable-next-line no-await-in-loop
+      const s = await getDocs(query(collection(db, 'phone_index'), where(documentId(), 'in', digits.slice(j, j + 30))));
+      s.forEach((d) => { idxOwner[d.id] = d.data().lead_id; });
+    }
+    const b = writeBatch(db);
+    part.forEach((l) => {
+      b.set(doc(db, 'recycle', l.id), {
+        kind: 'lead', data: l, deleted_at: serverTimestamp(), deleted_by: actor.uid, deleted_by_name: actor.name || '',
+      });
+      b.delete(doc(db, 'leads', l.id));
+      if (l.phone_digits && idxOwner[l.phone_digits] === l.id) b.delete(doc(db, 'phone_index', l.phone_digits));
+    });
+    // eslint-disable-next-line no-await-in-loop
+    await b.commit();
+    done += part.length;
+    if (onProgress) onProgress(done, leads.length);
+  }
+  await audit(actor, 'leads.bulk_delete', '', [], { note: `${leads.length} leads → recycle bin` });
 }
 
 /* ---------- BULK ---------- */

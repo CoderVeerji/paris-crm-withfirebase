@@ -8,7 +8,7 @@ import { computeScore, TIER_LABEL, TIER_CLASS } from '../lib/scoring';
 import { useConfig, salesUsers, ldrUsers, userName } from '../config';
 import { can } from '../lib/permissions';
 import { toast } from '../toast';
-import { bulkArchive, bulkAssign, softDeleteLead } from '../lib/admin';
+import { bulkArchive, bulkAssign, bulkSoftDelete } from '../lib/admin';
 import { friendlyError } from '../lib/errmsg';
 import { usePagedList } from '../lib/usePagedList';
 import { markCalling } from '../lib/callLog';
@@ -193,15 +193,23 @@ export default function Leads({ initialView = 'all' }) {
   const canDelete = can(role, 'leads:delete', cfg);  // recycle
   const canCreate = can(role, 'leads:create', cfg);
 
-  function toggleSel(id) {
-    setSel((s) => { const n = new Set(s); n.has(id) ? n.delete(id) : n.add(id); return n; });
+  // Alag-alag pages se chuni leads ke objects yaad rakho (export/delete ko poora data chahiye —
+  // pehle sirf current page ki leads milti thi, baaki chupchap skip ho jaati thin).
+  const selLeads = useRef(new Map());
+  function toggleSel(id, lead) {
+    setSel((s) => {
+      const n = new Set(s);
+      if (n.has(id)) { n.delete(id); selLeads.current.delete(id); } else { n.add(id); if (lead) selLeads.current.set(id, lead); }
+      return n;
+    });
   }
-  function exitSel() { setSelMode(false); setSel(new Set()); }
+  function exitSel() { setSelMode(false); setSel(new Set()); selLeads.current = new Map(); }
+  const [bulkProg, setBulkProg] = useState(null); // { done, total } — bade delete ke liye progress
 
   async function runBulk(fn, okMsg) {
     setBulkBusy(true);
     try { await fn(); toast(okMsg); exitSel(); setBulkSheet(null); refetchAll(); }
-    catch (e) { console.error(e); toast(friendlyError(e, t), 'err'); }
+    catch (e) { console.error(e); toast(friendlyError(e, t), 'err'); refetchAll(); } // partial kaam hua ho sakta hai — list taaza karo
     finally { setBulkBusy(false); }
   }
   const ids = [...sel];
@@ -209,7 +217,7 @@ export default function Leads({ initialView = 'all' }) {
 
   // "Select all matching" — current filter ki SAARI leads (page ki nahi). CSV ke liye rows bhi rakho.
   const [allMatch, setAllMatch] = useState(null); // { rows, capped } | null
-  useEffect(() => { setAllMatch(null); }, [team, status, flag, member, view]);
+  useEffect(() => { setAllMatch(null); setSel(new Set()); selLeads.current = new Map(); }, [team, status, flag, member, view]);
   async function selectAllMatching() {
     setBulkBusy(true);
     try {
@@ -220,9 +228,14 @@ export default function Leads({ initialView = 'all' }) {
     } catch (e) { console.error(e); toast(friendlyError(e, t), 'err'); }
     finally { setBulkBusy(false); }
   }
+  // chuni hui leads ke poore objects — select-all-matching + page-ke-page chune hue + current page, sab se
+  function selectedLeads() {
+    const pool = [...(allMatch?.rows || []), ...selLeads.current.values(), ...rows, ...shown].filter((l) => sel.has(l.id));
+    const seen = new Set();
+    return pool.filter((l) => (seen.has(l.id) ? false : seen.add(l.id)));
+  }
   function exportSelectedCsv() {
-    const src = (allMatch?.rows || []).concat(rows).filter((l) => sel.has(l.id));
-    const seen = new Set(); const uniq = src.filter((l) => (seen.has(l.id) ? false : seen.add(l.id)));
+    const uniq = selectedLeads();
     downloadCsv(`leads-${flag || status || team || 'all'}-${new Date().toISOString().slice(0, 10)}.csv`,
       ['Lead ID', 'Name', 'Phone', 'Company', 'City', 'State', 'Source', 'LDR Status', 'Sales Status', 'LDR', 'Sales', 'Created'],
       uniq.map((l) => [l.id, l.name || '', l.phone || l.phone_raw || '', l.company || '', l.city || '', l.state || '',
@@ -253,6 +266,76 @@ export default function Leads({ initialView = 'all' }) {
             </button>
           )}
         </div>
+
+        {/* SELECTION PANEL — ek hi jagah, search ke neeche sticky (scroll karte waqt bhi dikhta hai).
+            Pehle do alag fixed bars bottom pe ek ke upar ek aa jaate the, pagination ke paas dab jaate
+            the aur horizontal scroll karna padta tha. Ab buttons wrap hote hain, kuch chhupta nahi. */}
+        {selMode && (
+          <div className="selpanel">
+            <div className="selpanel-top">
+              <b className="selpanel-n"><i className="fas fa-circle-check" /> {fill(t('lfNSelected'), { n: sel.size })}</b>
+              {isAllLeads && !isSearching && !picked && (
+                <button className="btn btn-ghost" disabled={bulkBusy} onClick={selectAllMatching}>
+                  <i className="fas fa-list-check" /> {allMatch ? fill(t('lfSelectedAll'), { n: allMatch.rows.length }) : t('lfSelectAll')}
+                </button>
+              )}
+              {sel.size > 0 && (
+                <button className="btn btn-ghost" disabled={bulkBusy} onClick={() => { setSel(new Set()); selLeads.current = new Map(); }}>
+                  <i className="fas fa-xmark" /> {t('dClear')}
+                </button>
+              )}
+            </div>
+
+            {sel.size === 0 && <p className="selpanel-hint">{t('lfSelHint')}</p>}
+
+            {sel.size > 0 && (
+              <div className="selpanel-actions">
+                {archivedView ? (
+                  <>
+                    <button className="btn btn-ghost" disabled={bulkBusy} onClick={exportSelectedCsv}>
+                      <i className="fas fa-file-csv" /> {t('lfExportCsv')}
+                    </button>
+                    <button className="btn btn-primary" disabled={bulkBusy}
+                      onClick={() => runBulk(() => archiveAndExport(false), fill(t('blkUnarchived'), { n: ids.length }))}>
+                      <i className="fas fa-box-open" /> {t('blkUnarchive')}
+                    </button>
+                  </>
+                ) : (
+                  <>
+                    <button className="btn btn-ghost" disabled={bulkBusy} onClick={() => setBulkSheet('assign')}>
+                      <i className="fas fa-user-check" /> {t('assignSales')}
+                    </button>
+                    <button className="btn btn-ghost" disabled={bulkBusy} onClick={exportSelectedCsv}>
+                      <i className="fas fa-file-csv" /> {t('lfExportCsv')}
+                    </button>
+                    <button className="btn btn-ghost" disabled={bulkBusy}
+                      onClick={() => { if (!window.confirm(fill(t('lfArchiveConfirm'), { n: ids.length }))) return; runBulk(() => archiveAndExport(true), fill(t('blkArchived'), { n: ids.length })); }}>
+                      <i className="fas fa-box-archive" /> {t('blkArchive')}
+                    </button>
+                  </>
+                )}
+                {!archivedView && canDelete && (
+                  <button className="btn btn-danger" disabled={bulkBusy}
+                    onClick={() => {
+                      const list = selectedLeads();
+                      if (!list.length) return;
+                      if (!window.confirm(fill(t('confirmDelete'), { n: list.length }))) return;
+                      runBulk(async () => {
+                        try { await bulkSoftDelete(list, actor, (done, total) => setBulkProg({ done, total })); }
+                        finally { setBulkProg(null); }
+                      }, fill(t('blkDeleted'), { n: list.length }));
+                    }}>
+                    <i className="fas fa-trash" /> {t('del')}
+                  </button>
+                )}
+              </div>
+            )}
+
+            {bulkBusy && (
+              <div className="selpanel-busy"><span className="spinner" style={{ width: 14, height: 14, borderWidth: 2 }} /> {bulkProg ? fill(t('lfBulkProg'), { done: bulkProg.done, total: bulkProg.total }) : t('wait')}</div>
+            )}
+          </div>
+        )}
       </div>
 
       {isAllLeads && (
@@ -354,7 +437,7 @@ export default function Leads({ initialView = 'all' }) {
               {shown.map((l) => (
                 <LeadCard key={l.id} lead={l} t={t} statusMode={statusMode}
                   selMode={selMode} selected={sel.has(l.id)}
-                  onOpen={() => (selMode ? toggleSel(l.id) : setOpenLead(l))} />
+                  onOpen={() => (selMode ? toggleSel(l.id, l) : setOpenLead(l))} />
               ))}
             </div>
           )}
@@ -396,53 +479,6 @@ export default function Leads({ initialView = 'all' }) {
         />
       )}
 
-      {selMode && isAllLeads && !isSearching && !picked && (
-        <div className="bulkbar bulkbar-sel">
-          <button className="btn btn-ghost" disabled={bulkBusy} onClick={selectAllMatching}>
-            <i className="fas fa-list-check" /> {allMatch ? fill(t('lfSelectedAll'), { n: allMatch.rows.length }) : t('lfSelectAll')}
-          </button>
-          {sel.size > 0 && <button className="btn btn-ghost" onClick={() => setSel(new Set())}><i className="fas fa-xmark" /> {t('dClear')}</button>}
-        </div>
-      )}
-
-      {selMode && sel.size > 0 && (
-        <div className="bulkbar">
-          <span>{sel.size} ✓</span>
-          {archivedView ? (
-            <>
-              <button className="btn btn-ghost" disabled={bulkBusy} onClick={exportSelectedCsv}>
-                <i className="fas fa-file-csv" /> {t('lfExportCsv')}
-              </button>
-              <button className="btn btn-primary" disabled={bulkBusy}
-                onClick={() => runBulk(() => archiveAndExport(false), fill(t('blkUnarchived'), { n: ids.length }))}>
-                <i className="fas fa-box-open" /> {t('blkUnarchive')}
-              </button>
-            </>
-          ) : (
-            <>
-              <button className="btn btn-ghost" disabled={bulkBusy} onClick={() => setBulkSheet('assign')}>
-                <i className="fas fa-user-check" /> {t('assignSales')}
-              </button>
-              <button className="btn btn-ghost" disabled={bulkBusy} onClick={exportSelectedCsv}>
-                <i className="fas fa-file-csv" /> {t('lfExportCsv')}
-              </button>
-              <button className="btn btn-ghost" disabled={bulkBusy}
-                onClick={() => { if (!window.confirm(fill(t('lfArchiveConfirm'), { n: ids.length }))) return; runBulk(() => archiveAndExport(true), fill(t('blkArchived'), { n: ids.length })); }}>
-                <i className="fas fa-box-archive" /> {t('blkArchive')}
-              </button>
-            </>
-          )}
-          {!archivedView && canDelete && (
-            <button className="btn btn-danger" disabled={bulkBusy}
-              onClick={() => {
-                if (!window.confirm(fill(t('confirmDelete'), { n: ids.length }))) return;
-                runBulk(async () => { for (const id of ids) { const l = shown.find((r) => r.id === id) || rows.find((r) => r.id === id); if (l) await softDeleteLead(l, actor); } }, fill(t('blkDeleted'), { n: ids.length }));
-              }}>
-              <i className="fas fa-trash" /> {t('del')}
-            </button>
-          )}
-        </div>
-      )}
 
       {bulkSheet === 'assign' && (
         <BulkAssignSheet cfg={cfg} busy={bulkBusy} onClose={() => setBulkSheet(null)}

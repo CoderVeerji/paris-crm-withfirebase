@@ -212,9 +212,14 @@ export const SALES_STARTED = ['hot lead', 'visit customer', 'visit done', 'video
  *  likhte ho, ye dobara chalao — sirf isi se lead.status==qualified + sales_status abhi khaali
  *  (ya SALES_STARTED mein na ho) waali leads ka "server-side" flag sahi rehta hai, koi aur jagah
  *  ye formula copy-paste mat karna (drift se bachne ke liye — [[dash-preagg-dual-copy]] jaisa hi). */
+// Sales ne abhi tak koi asli stage nahi chuna — sirf ye "neutral" values (dash logic ke bhi same:
+// ['', 'qualified', 'fresh', 'new']). WHITELIST jaan-boojh kar: pehle blacklist (SALES_STARTED) tha, to
+// admin Stage Builder se naya sales-stage (jaise "meeting") banata aur wo list mein na hota to lead
+// hamesha "New Qualified" mein atki rehti.
+export const SALES_NEUTRAL = ['', 'qualified', 'fresh', 'new'];
 export function isSalesOpen(status, salesStatus) {
   return String(status || '').toLowerCase().trim() === 'qualified'
-    && !SALES_STARTED.includes(String(salesStatus || '').toLowerCase().trim());
+    && SALES_NEUTRAL.includes(String(salesStatus || '').toLowerCase().trim());
 }
 
 /** view-specific extra filters. `{ parts, post }` — post = client-side filters (index bachane ke liye). */

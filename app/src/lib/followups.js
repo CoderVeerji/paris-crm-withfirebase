@@ -7,9 +7,12 @@ import {
 } from 'firebase/firestore';
 import { db } from '../firebase';
 
+import { istDay } from './stats';
+
 const IST = '+05:30';
-const startOfToday = () => { const d = new Date(); return new Date(`${d.toISOString().slice(0, 10)}T00:00:00${IST}`); };
-const endOfToday = () => { const d = new Date(); return new Date(`${d.toISOString().slice(0, 10)}T23:59:59.999${IST}`); };
+// "aaj" IST ka — pehle UTC date use hoti thi, isliye raat 12 se subah 5:30 IST ke beech "aaj/overdue" ek din peeche chala jaata tha
+const startOfToday = () => new Date(`${istDay()}T00:00:00${IST}`);
+const endOfToday = () => new Date(`${istDay()}T23:59:59.999${IST}`);
 
 // LDR ke liye "abhi bhi LDR ke paas" = handoff/closed nahi
 const LDR_DONE = ['qualified', 'dead', 'lost', 'not interested', 'order done', 'fresh', 'new'];
@@ -42,6 +45,13 @@ export async function fetchFollowups({ kind, mode = 'all', from = '', to = '', s
   rows = rows.filter((l) => {
     if (kind === 'sales') {
       const ss = String(l.sales_status || '').toLowerCase().trim();
+      // Order Done + repeat-order followup date: sirf tab dikhao jab date order/action ke BAAD ki set hui ho
+      // (jaan-boojh kar lagayi). Purane migrated order-done leads pe stale past dates hain (210) — unhe nahi.
+      if (ss === 'order done') {
+        const nf = l.next_followup?.toMillis ? l.next_followup.toMillis() : 0;
+        const la = l.last_action_at?.toMillis ? l.last_action_at.toMillis() : Infinity;
+        return nf > la;
+      }
       return !SALES_INACTIVE.includes(ss);
     }
     // ldr: LDR ke paas hai, Sales ko nahi gaya, closed nahi

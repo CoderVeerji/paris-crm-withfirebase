@@ -77,16 +77,20 @@ export default function LeadSheet({ lead: leadIn, onClose, onSaved }) {
     : role === 'ldr' ? false
       : leadAtSales; // admin / md / tl → lead ke position ke hisaab se
   const roleStages = useMemo(() => {
-    const list = (cfg.stages || []).filter((s) => s.role === 'both' || s.role === (isSalesFlow ? 'sales' : 'ldr'));
+    // md/tl order bana nahi sakte (rules: orders sirf admin/sales) — order stage unhe dikhao hi mat, warna poora save fail hota tha
+    const noOrder = ['md', 'tl'].includes(role);
+    const list = (cfg.stages || [])
+      .filter((s) => s.role === 'both' || s.role === (isSalesFlow ? 'sales' : 'ldr'))
+      .filter((s) => !(noOrder && s.name.toLowerCase().includes('order')));
     if (list.length) return list.map((s) => ({
       name: s.name.toLowerCase(), label: s.name, req: s.requires_date === 'Yes',
       // "shows_form" config OR (backward-compat) stage literally named "qualified"
       form: s.shows_form === 'Yes' || s.name.toLowerCase() === 'qualified',
     }));
     return isSalesFlow
-      ? [{ name: 'followup', label: 'Follow-up', req: true }, { name: 'order done', label: 'Order Done', req: false }, { name: 'lost', label: 'Lost', req: false }]
+      ? [{ name: 'followup', label: 'Follow-up', req: true }, ...(noOrder ? [] : [{ name: 'order done', label: 'Order Done', req: false }]), { name: 'lost', label: 'Lost', req: false }]
       : [{ name: 'call back', label: 'Call Back', req: true }, { name: 'qualified', label: 'Qualified', req: false, form: true }, { name: 'lost', label: 'Lost', req: false }];
-  }, [cfg.stages, isSalesFlow]);
+  }, [cfg.stages, isSalesFlow, role]);
 
   const [stage, setStage] = useState(roleStages[0]?.name || 'call back');
   const [nextDt, setNextDt] = useState('');
@@ -165,7 +169,9 @@ export default function LeadSheet({ lead: leadIn, onClose, onSaved }) {
         toStage: stage,
         allowedStages: roleStages.map((s) => s.name),
         remark: remark.trim(),
-        nextFollowup: nextDt ? new Date(nextDt) : null,
+        // date sirf tab bhejo jab date-field screen pe dikh rahi ho — warna pehle (Call Back ke liye)
+        // bhari date, stage badalne (Qualified/Lost) ke baad bhi chhup ke save ho jaati thi.
+        nextFollowup: (needsDate || isOrder) && nextDt ? new Date(nextDt) : null,
         formAnswers: answers,
         assignSalesUid: isQualify ? (assignTo || null) : null,
         assignSalesName: isQualify ? (salesUsers(cfg).find((u) => u.id === assignTo)?.full_name || '') : '',
@@ -260,6 +266,15 @@ export default function LeadSheet({ lead: leadIn, onClose, onSaved }) {
               <div className="form-group">
                 <label style={{ color: 'var(--warning)' }}>{t('nextCallAt')} *</label>
                 <input type="datetime-local" className="form-control" required value={nextDt}
+                  onChange={(e) => setNextDt(e.target.value)} />
+              </div>
+            )}
+
+            {/* Order done: repeat-order follow-up ke liye next date OPTIONAL (khaali chhodo to lead band) */}
+            {isOrder && !needsDate && (
+              <div className="form-group">
+                <label style={{ color: 'var(--warning)' }}>{t('nextOrderFu')}</label>
+                <input type="datetime-local" className="form-control" value={nextDt}
                   onChange={(e) => setNextDt(e.target.value)} />
               </div>
             )}

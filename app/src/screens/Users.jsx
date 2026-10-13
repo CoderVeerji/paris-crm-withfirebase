@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { collection, getDocs } from 'firebase/firestore';
+import { collection, getDocs, doc, getDoc } from 'firebase/firestore';
 import { db } from '../firebase';
 import { useAuth } from '../auth';
 import { useConfig } from '../config';
@@ -9,7 +9,21 @@ import { toast } from '../toast';
 import { friendlyError } from '../lib/errmsg';
 import Sheet from '../components/Sheet';
 import { createUser, updateUser, sendReset, transferLeads, audit } from '../lib/admin';
-import { changeUserEmail, deleteUserAccount } from '../lib/stats';
+import { changeUserEmail, deleteUserAccount, setUserPassword } from '../lib/stats';
+
+// ⚠️ Admin "set password" tool ka BACKEND (functions adminTask 'user_password' + rules `user_secrets`)
+// abhi live project pe deploy NAHI hua (user ne live pe kuch na karne ko bola — preview aur live ka
+// database/functions same hain). Jab tak backend deploy + approve na ho, ye UI band rakho — warna
+// button dabane par plaintext password `admin_tasks/user_password` doc mein bina function ke pada rah jaata.
+const ADMIN_PASSWORD_TOOL = false;
+
+// bhoolne-aasaan (0/O, 1/l/I hata ke) 8-char password — admin ko user ko bolna/bhejna aasaan rahe
+function genPassword() {
+  const A = 'abcdefghjkmnpqrstuvwxyzABCDEFGHJKMNPQRSTUVWXYZ23456789';
+  const buf = new Uint32Array(8);
+  crypto.getRandomValues(buf);
+  return Array.from(buf, (n) => A[n % A.length]).join('');
+}
 
 // md = Managing Director (business ka poora view), tl = Team Leader (team ka operational view).
 // Technical control (settings/users/builders) sirf admin ke paas rehta hai.
@@ -141,6 +155,33 @@ function UserSheet({ user, allUsers, actor, t, onClose, onSaved }) {
   const [transferTo, setTransferTo] = useState('');
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState('');
+  // admin-set password (user_secrets, sirf admin padh sakta hai) + naya password set karne ka form
+  const [known, setKnown] = useState(null); // { password, set_at } | null
+  const [showPw, setShowPw] = useState(false);
+  const [newPw, setNewPw] = useState('');
+  useEffect(() => {
+    if (isNew) return undefined;
+    let alive = true;
+    getDoc(doc(db, 'user_secrets', user.id)).then((s) => { if (alive && s.exists()) setKnown(s.data()); }).catch(() => {});
+    return () => { alive = false; };
+  }, [isNew, user?.id]);
+
+  async function doSetPassword() {
+    const pw = newPw.trim();
+    if (pw.length < 6) { toast(t('uPwShort'), 'err'); return; }
+    setBusy(true); setErr('');
+    try {
+      await setUserPassword(user.id, pw);
+      await audit(actor, 'user.password_set', full_name || user.email, []); // password audit mein NAHI likhte
+      setKnown({ password: pw, set_at: new Date() });
+      setShowPw(true); setNewPw('');
+      toast(t('uPwSetOk'));
+    } catch (e2) { console.error(e2); toast(friendlyError(e2, t), 'err'); }
+    finally { setBusy(false); }
+  }
+  function copyPw(txt) {
+    navigator.clipboard.writeText(txt).then(() => toast(t('lmCopied'))).catch(() => toast(t('loadFail'), 'err'));
+  }
 
   async function save(e) {
     e.preventDefault();
@@ -253,6 +294,24 @@ function UserSheet({ user, allUsers, actor, t, onClose, onSaved }) {
       {!isNew && (
         <>
           <div className="ls-subhead">{t('uPassword')}</div>
+          {ADMIN_PASSWORD_TOOL && (<>
+          {known?.password && (
+            <div className="u-pw-known">
+              <span>{t('uPwCurrent')}:</span>
+              <b className="u-pw-val">{showPw ? known.password : '••••••••'}</b>
+              <button type="button" className="icon-btn" onClick={() => setShowPw((v) => !v)} aria-label="show"><i className={`fas ${showPw ? 'fa-eye-slash' : 'fa-eye'}`} /></button>
+              <button type="button" className="icon-btn" onClick={() => copyPw(known.password)} aria-label="copy"><i className="fas fa-copy" /></button>
+            </div>
+          )}
+          <div style={{ display: 'flex', gap: 8, marginBottom: 6 }}>
+            <input className="form-control" value={newPw} onChange={(e) => setNewPw(e.target.value)} placeholder={t('uPwNew')} autoComplete="off" />
+            <button type="button" className="btn btn-ghost" onClick={() => setNewPw(genPassword())} title={t('uPwGen')}><i className="fas fa-wand-magic-sparkles" /></button>
+          </div>
+          <button type="button" className="btn btn-primary btn-block" disabled={busy || newPw.trim().length < 6} onClick={doSetPassword} style={{ marginBottom: 6 }}>
+            <i className="fas fa-key" /> {t('uPwSet')}
+          </button>
+          <p style={{ fontSize: 11.5, color: 'var(--muted)', margin: '0 0 10px' }}>{t('uPwNote')}</p>
+          </>)}
           <button className="btn btn-ghost btn-block" disabled={busy}
             onClick={() => sendReset(user.email, actor).then(() => toast(t('uResetSent'))).catch((e2) => toast(friendlyError(e2, t), 'err'))}>
             <i className="fas fa-envelope" /> {t('uSendReset')}

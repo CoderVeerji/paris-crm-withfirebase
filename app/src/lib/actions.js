@@ -126,8 +126,10 @@ export async function logLeadAction(p) {
     upd.sla_followup_alerted = false;
     upd.sla_followup_due_alerted = false;
   }
-  if (formAnswers && typeof formAnswers === 'object') {
-    upd.form_answers = formAnswers;
+  if (formAnswers && typeof formAnswers === 'object' && Object.keys(formAnswers).length) {
+    // MERGE (replace nahi) — LDR ne qualify karte waqt jo answers bhare the, Sales ka action
+    // (jiske form-state mein shayad poore answers load na hue ho) unhe mita na de.
+    upd.form_answers = { ...(lead.form_answers || {}), ...formAnswers };
     for (const [k, label] of Object.entries(FLAT_FIELDS)) {
       if (label in formAnswers) upd[k] = String(formAnswers[label] || '').trim();
     }

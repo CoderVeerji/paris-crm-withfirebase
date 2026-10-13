@@ -970,6 +970,18 @@ exports.adminTask = onDocumentWritten('admin_tasks/{taskId}', async (event) => {
       await db.doc('users/' + uid).set({ email, updated_at: FV.serverTimestamp() }, { merge: true });
       result = { uid, email };
     }
+    else if (id === 'user_password') {
+      // Admin kisi user ka password seedha set kare (reset-email pe nirbhar na rehna pade).
+      // Firebase Auth kabhi asli password wapas nahi deta, isliye jo admin set karta hai wahi
+      // admin-only `user_secrets/{uid}` mein rakhte hain taaki admin baad mein dekh sake.
+      const uid = String(after.target_uid || '');
+      const pw = String(after.new_password || '');
+      if (!uid || pw.length < 6) throw new Error('uid aur kam se kam 6 character ka password chahiye');
+      await admin.auth().updateUser(uid, { password: pw });
+      await db.doc('users/' + uid).set({ must_reset_password: false, updated_at: FV.serverTimestamp() }, { merge: true });
+      await db.doc('user_secrets/' + uid).set({ password: pw, set_at: FV.serverTimestamp() }, { merge: true });
+      result = { uid };
+    }
     else if (id === 'user_delete') {
       const uid = String(after.target_uid || '');
       if (!uid) throw new Error('target_uid chahiye');
@@ -985,10 +997,11 @@ exports.adminTask = onDocumentWritten('admin_tasks/{taskId}', async (event) => {
       result = { uid, deleted: true };
     }
     else throw new Error('unknown task: ' + id);
-    await ref.set({ status: 'done', result, done_at: FV.serverTimestamp() }, { merge: true });
+    // new_password task-doc mein tik ke na rahe (plaintext) — kaam hote hi hata do
+    await ref.set({ status: 'done', result, done_at: FV.serverTimestamp(), new_password: FV.delete() }, { merge: true });
   } catch (e) {
     console.error('adminTask fail', id, e);
-    await ref.set({ status: 'error', error: String((e && e.message) || e), done_at: FV.serverTimestamp() }, { merge: true });
+    await ref.set({ status: 'error', error: String((e && e.message) || e), done_at: FV.serverTimestamp(), new_password: FV.delete() }, { merge: true });
   }
 });
 

@@ -134,6 +134,13 @@ service cloud.firestore {
       allow read, write: if isAdmin();
     }
 
+    // Admin ne jo password set kiye (user_password task) — sirf admin padh sakta hai, likhta sirf
+    // Cloud Function (Admin SDK, rules bypass) hai. Baaki kisi role ko kuch nahi dikhta.
+    match /user_secrets/{uid} {
+      allow read: if isAdmin();
+      allow write: if false;
+    }
+
     match /admin_tasks/{id} {
       allow read, write: if isAdmin();   // function server-side merge karta hai (rules bypass)
     }

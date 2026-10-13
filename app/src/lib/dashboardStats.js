@@ -17,24 +17,34 @@ const CACHE_TTL = 45 * 60 * 1000; // 45 min — filter badalne / dubara khulne p
 // localStorage use karte hain (sessionStorage nahi) — phone par log app baar-baar khol/band karte
 // hain, tab-close hote hi sessionStorage mit jaata tha aur 45-min cache kabhi kaam hi nahi aata tha.
 const CACHE_VER = (typeof __BUILD_TIME__ !== 'undefined' ? String(__BUILD_TIME__) : 'v1').replace(/\D/g, '').slice(-8) || 'v1';
-const CK = (k) => `pc_${CACHE_VER}_${k}`;
+// Cache ki apni ALAG namespace `pcache_` — ⚠️ pehle `pc_` tha, jo theme (`pc_theme`), brand
+// (`pc_brand`), saved filter (`pc_leads_pref`), list-view (`pc_leads_view`) jaisi USER-SETTINGS
+// ki keys se mil jaata tha, aur neeche ki safai unhe bhi har app-load pe mita deti thi (isliye
+// theme/saved-filter yaad nahi rehte the). Ab safai SIRF `pcache_*` (aur purane format ke
+// `pc_<build>_*` cache) ko chhoti hai — settings keys kabhi nahi.
+const CACHE_NS = 'pcache_';
+const CK = (k) => `${CACHE_NS}${CACHE_VER}_${k}`;
+/** doosre modules (misReport) bhi isi namespace mein cache likhein — safai ek jagah se ho. */
+export const cacheKey = CK;
+const LEGACY_CACHE = /^pc_(\d{8}|v1)_|^pc_mis_/; // purana (galat-namespace) cache — sirf ye hatta hai
 
-// Ek baar per app-load — purane build ke chhoote pc_ keys (jinka CACHE_VER ab match nahi karta)
-// saaf karo. localStorage sessionStorage jaisa apne-aap khaali nahi hota, har naye deploy ke baad
-// purani cache entries hamesha ke liye padi rehtin agar ye safai na ho.
+// Ek baar per app-load — purane build ka cache (CACHE_VER match nahi) + purane format ka cache saaf.
+// localStorage apne-aap khaali nahi hota, warna har deploy ke baad purani entries padi rehtin.
 try {
   for (let i = localStorage.length - 1; i >= 0; i--) {
     const k = localStorage.key(i);
-    if (k && k.startsWith('pc_') && !k.startsWith(`pc_${CACHE_VER}_`)) localStorage.removeItem(k);
+    if (!k) continue;
+    if ((k.startsWith(CACHE_NS) && !k.startsWith(`${CACHE_NS}${CACHE_VER}_`)) || LEGACY_CACHE.test(k)) localStorage.removeItem(k);
   }
 } catch { /* private mode — kuch nahi */ }
 
-/** Refresh button dabaya — poora dashboard cache saaf, agli fetch fresh Firestore se. */
+/** Refresh button dabaya — poora dashboard cache saaf, agli fetch fresh Firestore se.
+ *  (Sirf cache — user settings jaise theme/saved filter ko haath nahi lagata.) */
 export function bustDashCache() {
   try {
     for (let i = localStorage.length - 1; i >= 0; i--) {
       const k = localStorage.key(i);
-      if (k && k.startsWith('pc_')) localStorage.removeItem(k);
+      if (k && (k.startsWith(CACHE_NS) || LEGACY_CACHE.test(k))) localStorage.removeItem(k);
     }
   } catch { /* private mode — kuch nahi */ }
 }
@@ -489,10 +499,11 @@ export async function dashDayLive({ teamRole, memberUid, memberIds }, dayStr) {
     getDocs(query(collection(db, 'leads'), ...owner, where('urgent_at', '>=', rs), where('urgent_at', '<=', re), fbLimit(1500))).catch(() => ({ forEach: () => {}, size: 0 })),
   ]);
 
-  const touchCnt = {}; const dueSet = new Set();
+  const touchCnt = {}; const dueSet = new Set(); const realTouch = {};
   aSnap.forEach((d) => {
     const a = d.data(); if (!a.lead_id || !okUid(a.uid)) return;
     touchCnt[a.lead_id] = (touchCnt[a.lead_id] || 0) + 1;
+    if (a.action !== 'urgent') realTouch[a.lead_id] = (realTouch[a.lead_id] || 0) + 1; // re-inquiry mark khud "kaam" nahi
     if (inDay(a.was_due_for)) dueSet.add(a.lead_id);
   });
   const schedSet = new Set();
@@ -515,7 +526,8 @@ export async function dashDayLive({ teamRole, memberUid, memberIds }, dayStr) {
     const ua = l.urgent_at?.toDate ? l.urgent_at.toDate() : (l.updated_at?.toDate ? l.updated_at.toDate() : null);
     if (!ua || ua < rs || ua > re) return;
     const s = stOf(l);
-    const pend = !touchCnt[d.id] || s === 'other' || ['fresh', 'new', ''].includes(s);
+    // server (aggregateDay) jaisa: sirf asli action ("urgent" mark ke alawa) = worked. [[dash-preagg-dual-copy]]
+    const pend = !realTouch[d.id] || s === 'other' || ['fresh', 'new', ''].includes(s);
     if (pend) R.reinq.pids.push(d.id);
     else put(R.reinq, d.id, s, touchCnt[d.id]);
   });

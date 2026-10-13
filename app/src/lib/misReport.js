@@ -8,6 +8,7 @@
 import { doc, getDoc } from 'firebase/firestore';
 import { db } from '../firebase';
 import { daysBetween, istDay } from './stats';
+import { cacheKey } from './dashboardStats';
 
 // Poora saal (365) bhi ek MIS view load pe sirf 365 reads hai — is admin-only, kabhi-kabhi khulne
 // waali screen ke liye trivial cost hai (daily 50k budget ke saamne kuch bhi nahi), isliye yearly
@@ -16,7 +17,8 @@ const MIS_DAY_CAP = 400;
 const MIS_TTL = 45 * 60 * 1000; // dashboardStats.js jaisa hi 45-min localStorage cache pattern
 
 function misCacheKey(teamRole, members, from, to) {
-  return `pc_mis_${teamRole}_${members.map((m) => m.id).sort().join('.')}_${from}_${to}`;
+  // shared cache namespace (dashboardStats.cacheKey) — safai/bust ek hi jagah se, settings keys safe
+  return cacheKey(`mis_${teamRole}_${members.map((m) => m.id).sort().join('.')}_${from}_${to}`);
 }
 
 function mkAcc() { return { hits: {}, wst: {}, work: new Set(), pend: new Set() }; }

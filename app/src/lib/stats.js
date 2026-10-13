@@ -132,7 +132,8 @@ export const sendTestPush = (targetUid) => runAdminTask('test_push', { target_ui
 /** User ka login email badlo (Auth + doc dono — Cloud Function). */
 export const changeUserEmail = (uid, email) => runAdminTask('user_email', { target_uid: uid, new_email: email }, null, 30000);
 /** User ko permanently delete karo (Auth + doc). force=true -> leads assigned hote hue bhi delete. */
-export const deleteUserAccount = (uid, force = false) => runAdminTask('user_delete', { target_uid: uid, force }, null, 30000);
+export const setUserPassword = (uid, password) => runAdminTask('user_password', { target_uid: uid, new_password: password }, null, 30000);
+export const deleteUserAccount =(uid, force = false) => runAdminTask('user_delete', { target_uid: uid, force }, null, 30000);
 
 /** per-user overdue followup counts */
 export async function overdueByUser(users) {
