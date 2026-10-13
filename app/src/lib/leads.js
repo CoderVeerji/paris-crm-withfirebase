@@ -312,6 +312,36 @@ function allLeadsConstraints({ team, status, flag, member }) {
   return { parts: out, post };
 }
 
+/** "All Leads" mein koi bhi filter lage ho to kitni leads match karti hain — getCountFromServer (1 read, size se
+ *  farak nahi). Sirf equality/range filters (koi orderBy nahi) isliye naya index nahi chahiye. Archived leads bhi
+ *  ginti mein aa sakti hain (list unhe chhupati hai) — abhi 0 archived hain, campaign ke baad thoda zyada dikhega. */
+export async function countLeadsForFilter({ role, uid, filters }) {
+  const { team = '', status = '', flag = '', member = '' } = filters || {};
+  const [side, ...rest] = String(status || '').split(':');
+  const val = rest.join(':').toLowerCase();
+  const w = [];
+  if (flag === 'archived') w.push(where('archived', '==', true));
+  else {
+    w.push(...scopeConstraints({ role, uid, view: 'all' }));
+    if (member) w.push(where(team === 'sales' ? 'sales_uid' : 'ldr_uid', '==', member));
+    if (flag === 'hot') w.push(where('tier', '==', 'hot'));
+    else if (flag === 'urgent') w.push(where('is_urgent', '==', true));
+    else if (flag === 'review') w.push(where('review_queue', '==', true));
+    else if (flag === 'needs_review') w.push(where('needs_review', '==', true));
+    else if (flag === 'overdue') w.push(where('next_followup', '<', new Date()), where('outcome', '==', ''));
+    else if (side === 'ldr' && val) {
+      if (val === 'fresh') w.push(where('status', 'in', ['fresh', 'new']));
+      else if (val === 'dead' || val === 'lost') w.push(where('status', 'in', ['dead', 'lost']));
+      else w.push(where('status', '==', val));
+    } else if (side === 'sales' && val === 'new') w.push(where('sales_open', '==', true));
+    else if (side === 'sales' && val) w.push(where('sales_status', '==', val));
+    else if (team === 'sales') w.push(where('status', '==', 'qualified'));
+    else if (team === 'ldr') w.push(where('status', 'in', ['fresh', 'new', 'call back', 'callback', 'no answer', 'dead', 'lost']));
+  }
+  const r = await getCountFromServer(query(collection(db, 'leads'), ...w));
+  return r.data().count;
+}
+
 /**
  * @param {object} opts { role, uid, view, filters, cursor, pageSize }
  * @returns {Promise<{ rows, cursor, done }>}

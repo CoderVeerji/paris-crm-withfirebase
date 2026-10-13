@@ -92,7 +92,10 @@ export default function LeadSheet({ lead: leadIn, onClose, onSaved }) {
       : [{ name: 'call back', label: 'Call Back', req: true }, { name: 'qualified', label: 'Qualified', req: false, form: true }, { name: 'lost', label: 'Lost', req: false }];
   }, [cfg.stages, isSalesFlow, role]);
 
-  const [stage, setStage] = useState(roleStages[0]?.name || 'call back');
+  // Lead ka abhi ka stage (is flow ka) agar dropdown mein hai to wahi pehle se chuna ho; warna list ka pehla.
+  // (Pehle hamesha pehla = "Call Back" aata tha — Hot Lead / Order Done lead bhi fresh jaisi lagti thi.)
+  const curStage = String((isSalesFlow ? leadIn.sales_status : leadIn.status) || '').toLowerCase().trim();
+  const [stage, setStage] = useState(() => (roleStages.some((s) => s.name === curStage) ? curStage : (roleStages[0]?.name || 'call back')));
   const [nextDt, setNextDt] = useState('');
   const [assignTo, setAssignTo] = useState('');
   const [amount, setAmount] = useState('');
@@ -113,8 +116,9 @@ export default function LeadSheet({ lead: leadIn, onClose, onSaved }) {
   const isOrder = stage.includes('order');
   const isLost = stage === 'lost' || stage === 'dead';
   const isQualify = stage === 'qualified';
-  // order / lost = terminal, inme agli call ki date nahi chahiye
-  const needsDate = !!stageObj?.req && !isOrder && !isLost;
+  // Agli call/followup ki date SIRF Stage Builder ke "Ask for next call date" (requires_date) se — Order Done
+  // ya Lost pe bhi, agar admin ne Yes rakha ho to maangi jaayegi, No ho to nahi. (Pehle yahan hardcode tha.)
+  const needsDate = !!stageObj?.req;
 
   // full detail (form_answers/notes) agar list se aadhoora aaya
   useEffect(() => {
@@ -138,10 +142,10 @@ export default function LeadSheet({ lead: leadIn, onClose, onSaved }) {
     return () => { alive = false; };
   }, [lead.id, lead.order_count]);
 
-  // LDR side: custom fields sirf un stages pe jinme admin ne "Ask qualification form?" ON kiya hai
-  // (Stage Builder). Default: "qualified" naam wale stage pe ON. Call Back / Lost pe fast rahe.
-  // Sales side: unchanged.
-  const showCustomFields = isSalesFlow || !!stageObj?.form;
+  // Custom/qualification form fields sirf un stages pe jinme admin ne Stage Builder mein
+  // "Ask qualification form?" ON kiya hai (default: "qualified" naam wala stage) — LDR aur Sales
+  // DONO ke liye. (Pehle Sales ko har stage pe form dikhta tha — config ignore hoti thi.)
+  const showCustomFields = !!stageObj?.form;
   const editableForms = showCustomFields ? (cfg.forms || []).filter(
     (f) => ['admin', 'md', 'tl'].includes(role) || f.role_edit === 'both' || f.role_edit === (isSalesFlow ? 'sales' : 'ldr'),
   ) : [];
@@ -171,7 +175,7 @@ export default function LeadSheet({ lead: leadIn, onClose, onSaved }) {
         remark: remark.trim(),
         // date sirf tab bhejo jab date-field screen pe dikh rahi ho — warna pehle (Call Back ke liye)
         // bhari date, stage badalne (Qualified/Lost) ke baad bhi chhup ke save ho jaati thi.
-        nextFollowup: (needsDate || isOrder) && nextDt ? new Date(nextDt) : null,
+        nextFollowup: needsDate && nextDt ? new Date(nextDt) : null,
         formAnswers: answers,
         assignSalesUid: isQualify ? (assignTo || null) : null,
         assignSalesName: isQualify ? (salesUsers(cfg).find((u) => u.id === assignTo)?.full_name || '') : '',
@@ -266,15 +270,6 @@ export default function LeadSheet({ lead: leadIn, onClose, onSaved }) {
               <div className="form-group">
                 <label style={{ color: 'var(--warning)' }}>{t('nextCallAt')} *</label>
                 <input type="datetime-local" className="form-control" required value={nextDt}
-                  onChange={(e) => setNextDt(e.target.value)} />
-              </div>
-            )}
-
-            {/* Order done: repeat-order follow-up ke liye next date OPTIONAL (khaali chhodo to lead band) */}
-            {isOrder && !needsDate && (
-              <div className="form-group">
-                <label style={{ color: 'var(--warning)' }}>{t('nextOrderFu')}</label>
-                <input type="datetime-local" className="form-control" value={nextDt}
                   onChange={(e) => setNextDt(e.target.value)} />
               </div>
             )}

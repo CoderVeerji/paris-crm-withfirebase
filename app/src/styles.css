@@ -1350,3 +1350,8 @@ table.mis-t th.mis-th-group { text-align: center; background: color-mix(in srgb,
 .selpanel-actions { display: flex; flex-wrap: wrap; gap: 6px; padding-top: 8px; border-top: 1px dashed var(--line); }
 .selpanel-hint { margin: 0; font-size: 12px; color: var(--muted); }
 .selpanel-busy { display: flex; align-items: center; gap: 8px; font-size: 12.5px; font-weight: 600; color: var(--navy-accent); }
+
+/* All Leads — filter ke baad "N leads" count pill */
+.lf-count { display: inline-flex; align-items: center; gap: 6px; font-weight: 800; font-size: 13px; color: var(--navy-accent);
+  background: color-mix(in srgb, var(--navy-accent) 10%, var(--card)); border-radius: 999px; padding: 6px 12px; white-space: nowrap; }
+.lf-count i { font-size: 11px; }

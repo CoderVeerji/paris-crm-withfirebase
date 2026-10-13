@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useAuth } from '../auth';
 import { useT, fill } from '../i18n';
-import { fetchLeadsPage, fetchLeadsAll, fetchLeadsForFilter, getLead, searchLeads, leadStatusCounts, bustStatusCounts, PAGE_SIZE } from '../lib/leads';
+import { fetchLeadsPage, fetchLeadsAll, fetchLeadsForFilter, countLeadsForFilter, getLead, searchLeads, leadStatusCounts, bustStatusCounts, PAGE_SIZE } from '../lib/leads';
 import { downloadCsv } from '../lib/csv';
 import { fmtStatus, fmtDate, fmtMoney, isPast } from '../lib/format';
 import { computeScore, TIER_LABEL, TIER_CLASS } from '../lib/scoring';
@@ -91,7 +91,8 @@ export default function Leads({ initialView = 'all' }) {
       .map((x) => x.name.toLowerCase()).filter((n) => n !== 'qualified' && n !== 'new' && n !== 'fresh');
     const ldrExtra = cfgStages('ldr');
     const salesExtra = cfgStages('sales');
-    const ldr = [...new Set([...LDR_STATUS_FALLBACK, ...ldrExtra])];
+    // 'dead' aur 'lost' ek hi cheez hain (filter dono ko saath pakadta hai) — pehle dono alag option ban ke "Lost" do baar dikhta tha
+    const ldr = [...new Set([...LDR_STATUS_FALLBACK, ...ldrExtra].map((n) => (n === 'lost' ? 'dead' : n)))];
     const sales = ['new', ...new Set([...SALES_STATUS_FALLBACK, ...salesExtra].filter((n) => n !== 'new'))];
     return { ldr, sales };
   }, [cfg.stages]);
@@ -120,6 +121,19 @@ export default function Leads({ initialView = 'all' }) {
     return () => { alive = false; };
   }, [isAllLeads, role, user.id, team, member, scNonce]);
   function refetchAll() { bustStatusCounts(); setScNonce((n) => n + 1); reload(); }
+
+  // Koi bhi filter lage ho to "N leads" dikhao (count() — 1 read). Filter hatne par chhupa do.
+  const anyFilter = !!(team || status || flag || member);
+  const [matchCount, setMatchCount] = useState(null);
+  useEffect(() => {
+    if (!isAllLeads || !anyFilter) { setMatchCount(null); return undefined; }
+    let alive = true;
+    setMatchCount(null);
+    countLeadsForFilter({ role, uid: user.id, filters: { team, status, flag, member } })
+      .then((n) => { if (alive) setMatchCount(n); })
+      .catch(() => { if (alive) setMatchCount(-1); });
+    return () => { alive = false; };
+  }, [isAllLeads, anyFilter, role, user.id, team, status, flag, member, scNonce]);
 
   // Fresh Pool / New Qualified — person/date summary cards (bounded fetch, 30-min cached)
   const showSummary = view === 'fresh' || view === 'sales_fresh';
@@ -361,7 +375,11 @@ export default function Leads({ initialView = 'all' }) {
                 </optgroup>
               )}
             </select>
-            <select className="form-control lf-sel" value={member} onChange={(e) => setMember(e.target.value)}>
+            <select className="form-control lf-sel" value={member} onChange={(e) => {
+              const m = e.target.value; setMember(m);
+              const u = people.find((x) => x.id === m);
+              if (u && !team) setTeam(u.role === 'sales' ? 'sales' : 'ldr'); // team khaali ho to member ke role wali team lagao
+            }}>
               <option value="">{t('lfAllPeople')}</option>
               {people.map((u) => <option key={u.id} value={u.id}>{u.full_name}</option>)}
             </select>
@@ -373,6 +391,11 @@ export default function Leads({ initialView = 'all' }) {
               <button type="button" className="lf-clear" onClick={() => { setTeam(role === 'sales' ? 'sales' : role === 'ldr' ? 'ldr' : ''); setStatus(''); setFlag(''); setMember(''); }}>
                 <i className="fas fa-xmark" /> {t('dClear')}
               </button>
+            )}
+            {anyFilter && (
+              <span className="lf-count" title={t('lfCountTip')}>
+                <i className="fas fa-filter" /> {matchCount == null ? '…' : matchCount < 0 ? '—' : fill(t('lfCount'), { n: matchCount.toLocaleString('en-IN') })}
+              </span>
             )}
             <div className="lf-bottom">
               <div className="lf-viewseg">
