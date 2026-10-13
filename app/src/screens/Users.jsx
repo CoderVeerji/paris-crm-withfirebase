@@ -15,7 +15,7 @@ import { changeUserEmail, deleteUserAccount, setUserPassword } from '../lib/stat
 // abhi live project pe deploy NAHI hua (user ne live pe kuch na karne ko bola — preview aur live ka
 // database/functions same hain). Jab tak backend deploy + approve na ho, ye UI band rakho — warna
 // button dabane par plaintext password `admin_tasks/user_password` doc mein bina function ke pada rah jaata.
-const ADMIN_PASSWORD_TOOL = false;
+const ADMIN_PASSWORD_TOOL = true;
 
 // bhoolne-aasaan (0/O, 1/l/I hata ke) 8-char password — admin ko user ko bolna/bhejna aasaan rahe
 function genPassword() {
