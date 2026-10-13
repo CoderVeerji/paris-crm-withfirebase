@@ -25,7 +25,7 @@ rebuilds `leads`, `activity`, `orders`, milestones, `users` (Auth) and `config` 
 
 Manual CSV export is fragile — the `Notes` column has emoji, newlines, commas and quotes that
 break CSV, and it can't create records for ex-employees who still own leads. Use the Apps Script
-instead (`migration/OLD-SYSTEM-EXPORT.gs`):
+instead (`OLD-SYSTEM-EXPORT.gs` — archived after go-live in `_extra/old-GROW-system/` at the project root; migration is done, this runbook is kept for history):
 
 1. Open the **live GROW sheet** → `Extensions → Apps Script`.
 2. New script file, paste all of `OLD-SYSTEM-EXPORT.gs`, Save.
