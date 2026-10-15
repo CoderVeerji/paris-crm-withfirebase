@@ -9,7 +9,9 @@ service cloud.firestore {
     // Provisioned = admin ne is user ko banaya (users/{uid} doc hai). Bahar se koi khud
     // Firebase Auth sign-up kar bhi le (public API key se), to bhi koi users-doc na hone se
     // ye false rahega — yani wo kuch likh/padh nahi sakta. Har "sirf signed-in" gate ab yahi hai.
-    function isProvisioned() { return isSignedIn() && exists(/databases/$(database)/documents/users/$(request.auth.uid)); }
+    // Deactivated user (status == 'inactive') ka bhi koi data access nahi — login ho bhi jaye to rules kuch nahi dene (app 'inactive' screen dikhati hai).
+    // Purane docs jinme status nahi/khaali hai wo chalte rahenge (sirf literal 'inactive' block).
+    function isProvisioned() { return isSignedIn() && exists(/databases/$(database)/documents/users/$(request.auth.uid)) && userDoc().get('status', 'active') != 'inactive'; }
     function userDoc()    { return get(/databases/$(database)/documents/users/$(request.auth.uid)).data; }
     function role()       { return userDoc().role; }
     function isAdmin()    { return isProvisioned() && role() == 'admin'; }
@@ -17,10 +19,16 @@ service cloud.firestore {
     // ACT karne milta hai, par technical control (settings/users/builders/recycle) sirf admin ka.
     // Ye role-set FIXED hai — "kaun kya dekhta hai" config se badalta hai, "kaun kya kar sakta
     // hai" (asli security) yahin fixed rehti hai.
+    // re-inquiry (customer dobara aaya: urgent_at naya) ya archived lead ko wapas kholna — in raaston pe status badalna jaayaz hai
+    function isReinq() {
+      return (request.resource.data.get('is_urgent', false) == true
+              && request.resource.data.get('urgent_at', null) != resource.data.get('urgent_at', null))
+          || (resource.data.get('archived', false) == true && request.resource.data.get('archived', true) == false);
+    }
     function isOversight() { return isProvisioned() && role() in ['admin', 'md', 'tl']; }
 
     match /users/{uid} {
-      allow read: if isProvisioned();
+      allow read: if isProvisioned() || (isSignedIn() && request.auth.uid == uid); // inactive user apna doc padh sake (screen dikhane ke liye)
       allow create, delete: if isAdmin();
       allow update: if isAdmin()
         || (request.auth.uid == uid
@@ -30,19 +38,19 @@ service cloud.firestore {
 
     match /leads/{id} {
       allow read: if isOversight()
-        || (role() == 'ldr'   && (resource.data.ldr_uid == request.auth.uid
+        || (isProvisioned() && role() == 'ldr'   && (resource.data.ldr_uid == request.auth.uid
                                   || resource.data.status in ['fresh', 'new']))
-        || (role() == 'sales' && resource.data.sales_uid == request.auth.uid);
+        || (isProvisioned() && role() == 'sales' && resource.data.sales_uid == request.auth.uid);
       allow create: if isProvisioned();
       // owner / admin / md / tl -> full update.  koi bhi signed-in -> sirf re-inquiry / resurrect fields.
       // LDR kabhi `sales_status` nahi likh sakta (Sales-stage galti se set na ho) — Sales `status` nahi.
       // status / sales_status ko khaali ('') set karna kabhi allowed nahi — "other" bucket isse aata tha
       allow update: if (
            isOversight()
-        || (role() == 'ldr'   && (resource.data.ldr_uid == request.auth.uid
+        || (isProvisioned() && role() == 'ldr'   && (resource.data.ldr_uid == request.auth.uid
                                   || resource.data.status in ['fresh', 'new'])
                               && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['sales_status']))
-        || (role() == 'sales' && resource.data.sales_uid == request.auth.uid
+        || (isProvisioned() && role() == 'sales' && resource.data.sales_uid == request.auth.uid
                               && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['status', 'ldr_uid']))
         || (isProvisioned() && request.resource.data.diff(resource.data).affectedKeys().hasOnly(
               ['is_urgent', 'urgent_at', 'reinq_open', 'next_followup', 'updated_at',
@@ -73,7 +81,13 @@ service cloud.firestore {
                  'status', 'sales_status', 'outcome', 'closed_at', 'sales_open',
                  'ldr_uid', 'ldr_name', 'sales_uid', 'sales_name', 'assigned_sales_at']))
         ) && !(request.resource.data.diff(resource.data).affectedKeys().hasAny(['status']) && request.resource.data.status == '')
-          && !(request.resource.data.diff(resource.data).affectedKeys().hasAny(['sales_status']) && request.resource.data.sales_status == '');
+          && !(request.resource.data.diff(resource.data).affectedKeys().hasAny(['sales_status']) && request.resource.data.sales_status == '')
+        // HAND-OFF LOCK: lead 'qualified' hone ke baad wo Sales ki hai — LDR uska status nahi badal sakta, aur Sales kabhi `status`
+        // nahi likhta (LDR ka field). Do jaayaz raaste khule: re-inquiry (urgent_at badla) aur archived lead ko dobara kholna.
+        && !(isProvisioned() && role() in ['ldr', 'sales']
+             && request.resource.data.diff(resource.data).affectedKeys().hasAny(['status'])
+             && !isReinq()
+             && (role() == 'sales' || resource.data.status == 'qualified'));
       allow delete: if isAdmin();
     }
 
@@ -90,7 +104,7 @@ service cloud.firestore {
 
     match /orders/{id} {
       allow read:  if isProvisioned();
-      allow write: if isAdmin() || role() == 'sales';
+      allow write: if isAdmin() || (isProvisioned() && role() == 'sales');
     }
 
     match /stats_daily/{id}    { allow read: if isOversight(); allow write: if false; }
@@ -125,7 +139,7 @@ service cloud.firestore {
     }
 
     match /audit/{id} {
-      allow read:   if isAdmin() || role() == 'md';
+      allow read:   if isAdmin() || (isProvisioned() && role() == 'md');
       allow create: if isProvisioned();
       allow update, delete: if false;
     }

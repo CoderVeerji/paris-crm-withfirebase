@@ -872,11 +872,14 @@ exports.dailyMaintenance = onSchedule({ schedule: '0 1 * * *', timeZone: 'Asia/K
   // pichhle 1 din DOBARA aggregate karo (aaj + kal) — jin leads ka status baad me badla (fresh ->
   // lost) un dino ka `dash` current rahe. Pehle 5 din tak jaate the (~11k reads/raat) — measured
   // audit se pata chala 2+ din purani lead ka status shayad hi badalta hai, isliye 2 din kaafi hai.
+  // Har step apne try/catch mein — ek fail ho (jaise aggregate) to baaki (cohort, recycle purge) phir bhi chalein.
   for (let d = 1; d >= 0; d--) {
-    // eslint-disable-next-line no-await-in-loop
-    await aggregateDay(istDay(Date.now() - d * 86400000));
+    try {
+      // eslint-disable-next-line no-await-in-loop
+      await aggregateDay(istDay(Date.now() - d * 86400000));
+    } catch (e) { console.error('dailyMaintenance aggregateDay fail', d, e); }
   }
-  await refreshCohort(istDay(Date.now()).slice(0, 7));
+  try { await refreshCohort(istDay(Date.now()).slice(0, 7)); } catch (e) { console.error('dailyMaintenance cohort fail', e); }
 
   const cutoff = TS.fromMillis(Date.now() - 30 * 86400000);
   let n = 0;
@@ -994,6 +997,7 @@ exports.adminTask = onDocumentWritten('admin_tasks/{taskId}', async (event) => {
       }
       await admin.auth().deleteUser(uid).catch((e) => { if (e.code !== 'auth/user-not-found') throw e; });
       await db.doc('users/' + uid).delete();
+      await db.doc('user_secrets/' + uid).delete().catch(() => {}); // admin ne jo password set kiya tha, wo bhi hata do
       result = { uid, deleted: true };
     }
     else throw new Error('unknown task: ' + id);
