@@ -40,17 +40,19 @@ import Tickets from './screens/Tickets';
 /* Menu — har item ek permission se juda hai (lib/permissions.js). `roleOnly` wale (ldr/sales
  * working screens) role se hi decide hote hain kyunki wo view-scope hai, permission nahi.
  * Security yahan se NAHI aati — wo Firestore rules mein hai. Ye sirf "kya dikhega" hai. */
+// `sec` = section heading (label sirf tab dikhta hai jab uske neeche is role ko koi item dikhe)
 const MENU = [
+  { sec: 'msOverview' },
   { key: 'dashboard', tKey: 'mDashboard', icon: 'fa-chart-line', perm: 'reports:dashboard' },
+  { sec: 'msLeads' },
   { key: 'leads', tKey: 'mLeads', icon: 'fa-list', perm: 'leads:view' },
   { key: 'calllogs', tKey: 'mCallLogs', icon: 'fa-clipboard-list', perm: 'leads:view' },
-  { sep: true, roleOnly: ['admin', 'tl', 'ldr'] },
+  { sec: 'msWork' },
   { key: 'fresh', tKey: 'mFresh', icon: 'fa-leaf', roleOnly: ['admin', 'tl', 'ldr'] },
   { key: 'pendingcalls', tKey: 'mPendingCalls', icon: 'fa-clock', roleOnly: ['admin', 'tl', 'ldr'] },
-  { sep: true, roleOnly: ['admin', 'tl', 'sales'] },
   { key: 'salesfresh', tKey: 'mSalesFresh', icon: 'fa-star', roleOnly: ['admin', 'tl', 'sales'] },
   { key: 'salesfollowup', tKey: 'mSalesFollowup', icon: 'fa-calendar-check', roleOnly: ['admin', 'tl', 'sales'] },
-  { sep: true, perm: 'reports:monitor' },
+  { sec: 'msTeam' },
   { key: 'monitor', tKey: 'mMonitor', icon: 'fa-satellite-dish', perm: 'reports:monitor' },
   { key: 'weekly', tKey: 'mWeekly', icon: 'fa-file-lines', perm: 'reports:weekly' },
   { key: 'mis', tKey: 'mMis', icon: 'fa-clipboard-check', perm: 'reports:weekly' },
@@ -58,7 +60,7 @@ const MENU = [
   { key: 'analytics', tKey: 'mAnalytics', icon: 'fa-chart-pie', perm: 'reports:analytics' },
   { key: 'reports', tKey: 'mReports', icon: 'fa-file-export', perm: 'reports:export' },
   { key: 'datahealth', tKey: 'mDataHealth', icon: 'fa-heartbeat', roleOnly: ['admin'] },
-  { sep: true, roleOnly: ['admin'] },
+  { sec: 'msAdmin' },
   { key: 'users', tKey: 'mUsers', icon: 'fa-users-cog', perm: 'users:view' },
   { key: 'settings', tKey: 'mSettings', icon: 'fa-cogs', perm: 'settings:edit' },
   { key: 'builders', tKey: 'mForms', icon: 'fa-list-alt', perm: 'config:builders' },
@@ -66,7 +68,7 @@ const MENU = [
   { key: 'recycle', tKey: 'mRecycle', icon: 'fa-trash-can', perm: 'recycle:manage' },
   { key: 'audit', tKey: 'mAudit', icon: 'fa-clipboard-list', perm: 'reports:audit' },
   { key: 'tickets', tKey: 'mTickets', icon: 'fa-ticket', perm: 'tickets:manage' },
-  { sep: true },
+  { sec: 'msSupport' },
   { key: 'help', tKey: 'mHelp', icon: 'fa-circle-question' },
 ];
 
@@ -181,7 +183,12 @@ export default function App() {
     if (!m.perm) return true; // sabko dikhega (e.g. Help)
     return can(role, m.perm, cfg);
   };
-  const items = MENU.filter(canSee);
+  // section heading tabhi rakho jab uske baad (agle heading se pehle) koi item bacha ho
+  const items = MENU.filter(canSee).filter((m, i, arr) => {
+    if (!m.sec) return true;
+    const nx = arr[i + 1];
+    return !!nx && !nx.sec;
+  });
   const activeNav = nav || primaryLeadNav(role);
   const current = MENU.find((m) => m.key === activeNav);
 
@@ -225,8 +232,8 @@ export default function App() {
           <span className="role">{role}</span>
         </div>
         <ul className="sidebar-menu">
-          {items.map((m, i) => m.sep
-            ? <hr key={`s${i}`} />
+          {items.map((m, i) => m.sec
+            ? <li key={`s${i}`} className="sb-sec" role="presentation">{t(m.sec)}</li>
             : (
               <li key={m.key}>
                 <button className={activeNav === m.key ? 'active' : ''} onClick={() => setNav(m.key)}>
@@ -236,6 +243,7 @@ export default function App() {
             ))}
         </ul>
         <div className="sidebar-foot">
+          <div className="sb-card">
           {/* Update: hamesha ek compact row (manual refresh ka rasta); naya version aaye to accent + dot */}
           <button type="button" className={`sb-row sb-update ${updateHash ? 'has-update' : ''}`} onClick={() => reloadForUpdate(updateHash || undefined)}>
             <i className="fas fa-arrows-rotate" /><span>{t('updateApp')}</span>{updateHash && <b className="sb-dot" aria-hidden="true" />}
@@ -256,6 +264,7 @@ export default function App() {
                 </button>
               ))}
             </div>
+          </div>
           </div>
           <button type="button" className="sb-row sb-logout" onClick={signOut}><i className="fas fa-arrow-right-from-bracket" /><span>{t('logout')}</span></button>
         </div>

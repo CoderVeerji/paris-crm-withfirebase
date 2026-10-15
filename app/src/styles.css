@@ -184,6 +184,10 @@ a { color: var(--navy-accent); text-decoration: none; }
 .sidebar-menu li button:active { background: rgba(255, 255, 255, 0.1); }
 .sidebar-menu li button.active { background: var(--navy-accent); color: #fff; }
 .sidebar-menu hr { border: none; border-top: 1px solid rgba(255, 255, 255, 0.12); margin: 9px 8px; }
+/* section headings (OVERVIEW / LEADS / ...) — chhote uppercase labels, menu ko groups mein todte hain */
+.sidebar-menu .sb-sec { padding: 16px 14px 5px; font-size: 10.5px; font-weight: 700; letter-spacing: 0.09em; text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.42); cursor: default; user-select: none; }
+.sidebar-menu .sb-sec:first-child { padding-top: 4px; }
 .sidebar-foot { padding: 10px 12px calc(10px + var(--safe-b)); border-top: 1px solid rgba(255, 255, 255, 0.1); display: flex; flex-direction: column; gap: 6px; }
 /* utility rows: shaant menu-rows (bade bordered blocks nahi) */
 .sb-row { width: 100%; min-height: 40px; padding: 0 12px; border-radius: 10px; display: flex; align-items: center; gap: 12px;
@@ -192,7 +196,10 @@ a { color: var(--navy-accent); text-decoration: none; }
 .sb-row:hover, .sb-row:active { background: rgba(255, 255, 255, 0.08); color: #fff; }
 .sb-update.has-update { background: color-mix(in srgb, var(--navy-accent) 38%, transparent); color: #fff; font-weight: 600; }
 .sb-dot { margin-left: auto; width: 8px; height: 8px; border-radius: 50%; background: #fff; box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.22); }
-.sb-tools { display: flex; gap: 8px; padding: 4px 0 6px; }
+.sb-tools { display: flex; gap: 8px; padding: 4px 4px 6px; }
+/* Update / Install / Language / Theme ek bordered card mein — alag se pehchaan mein aaye */
+.sb-card { display: flex; flex-direction: column; gap: 2px; padding: 4px; border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.14); background: rgba(255, 255, 255, 0.04); }
 /* segmented control — 3-way choice ke liye 6 bordered pills ki jagah ek track + active thumb */
 .sb-seg { display: flex; padding: 2px; gap: 2px; border-radius: 10px; background: rgba(0, 0, 0, 0.28); }
 .sb-seg-lang { flex: 1; min-width: 0; }
@@ -201,8 +208,8 @@ a { color: var(--navy-accent); text-decoration: none; }
 .sb-seg button::after { content: ""; position: absolute; inset: -4px 0; }
 .sb-seg button i { font-size: 13px; }
 .sb-seg button.active { background: var(--card); color: var(--ink); box-shadow: 0 1px 2px rgba(0, 0, 0, 0.25); }
-.sb-logout { margin-top: 2px; border-top: 1px solid rgba(255, 255, 255, 0.08); border-radius: 0 0 10px 10px; color: rgba(255, 255, 255, 0.65); }
-.sb-logout:hover, .sb-logout:active { background: rgba(224, 52, 43, 0.18); color: #fff; }
+.sb-logout { margin-top: 4px; border: 1px solid rgba(255, 255, 255, 0.14); color: rgba(255, 255, 255, 0.7); justify-content: flex-start; }
+.sb-logout:hover, .sb-logout:active { background: rgba(224, 52, 43, 0.18); border-color: rgba(224, 52, 43, 0.45); color: #fff; }
 .sidebar-foot :focus-visible { outline: 2px solid var(--navy-accent); outline-offset: 2px; }
 @media (max-height: 640px) { .sb-row { min-height: 36px; } .sb-seg button { height: 28px; } }
 
