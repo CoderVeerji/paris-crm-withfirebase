@@ -10,7 +10,7 @@ const BUILTIN = {
   up: 'Uttar Pradesh', mp: 'Madhya Pradesh', hp: 'Himachal Pradesh', ap: 'Andhra Pradesh', tn: 'Tamil Nadu',
   wb: 'West Bengal', bengal: 'West Bengal', jk: 'Jammu & Kashmir', jandk: 'Jammu & Kashmir', jammukashmir: 'Jammu & Kashmir',
   mh: 'Maharashtra', gj: 'Gujarat', rj: 'Rajasthan', ka: 'Karnataka', kl: 'Kerala', ts: 'Telangana', tg: 'Telangana',
-  od: 'Odisha', orissa: 'Odisha', pb: 'Punjab', hr: 'Haryana', br: 'Bihar', jh: 'Jharkhand', cg: 'Chhattisgarh', chattisgarh: 'Chhattisgarh',
+  od: 'Odisha', orissa: 'Odisha', odisa: 'Odisha', odissa: 'Odisha', asam: 'Assam', assm: 'Assam', pb: 'Punjab', hr: 'Haryana', br: 'Bihar', jh: 'Jharkhand', cg: 'Chhattisgarh', chattisgarh: 'Chhattisgarh',
   uttaranchal: 'Uttarakhand', uk: null, dl: 'Delhi', newdelhi: 'Delhi', ncr: 'Delhi', delhincr: 'Delhi', pondicherry: 'Puducherry',
   as: 'Assam', ar: 'Arunachal Pradesh', mz: 'Mizoram', nl: 'Nagaland', mn: 'Manipur', ml: 'Meghalaya', sk: 'Sikkim', tr: 'Tripura', ga: 'Goa',
 };
@@ -47,15 +47,18 @@ function lev(a, b) {
 const inList = (key) => LIST.find((x) => x.key === key);
 
 function resolve(raw) {
-  const txt = String(raw == null ? '' : raw).replace(/s+/g, ' ').trim();
+  const txt = String(raw == null ? '' : raw).replace(/\s+/g, ' ').trim();
   if (!txt) return { name: '', ok: true };
   const key = compact(txt);
   const exact = inList(key);
   if (exact) return { name: exact.name, ok: true };
   const target = Object.prototype.hasOwnProperty.call(ALIAS, key) ? ALIAS[key] : BUILTIN[key];
   if (target) { const hit = inList(compact(target)); if (hit) return { name: hit.name, ok: true }; }
-  if (key.length >= 6) { // typo ("utter pardesh", "maharastra") — sirf tab jab ek hi naam nazdeek ho
-    const near = LIST.filter((x) => x.key.length >= 6 && lev(key, x.key) <= 2);
+  if (key.length >= 6) {
+    // typo ("utter pardesh", "maharastra") — sirf tab jab ek hi naam nazdeek ho. Sakht rakha hai: pehla akshar same,
+    // chhote naam (6-9) mein 1 galti, lambe (10+) mein 2 — warna "Jaipur"/"Kanpur" (shehar) "Manipur" ban jaate the.
+    const maxD = key.length >= 10 ? 2 : 1;
+    const near = LIST.filter((x) => x.key.length >= 6 && x.key[0] === key[0] && lev(key, x.key) <= maxD);
     if (near.length === 1) return { name: near[0].name, ok: true };
   }
   return { name: txt, ok: false };
