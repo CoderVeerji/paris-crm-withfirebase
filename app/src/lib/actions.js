@@ -41,6 +41,10 @@ export async function logLeadAction(p) {
     || !!String(lead.sales_status || '').trim();
   const isSales = role === 'sales' ? true : role === 'ldr' ? false : leadAtSales;
 
+  // Hand-off ke baad lead Sales ki hai — LDR ab status nahi badal sakta (pehle LDR Qualified+assign ke baad bhi
+  // Lost kar deta tha, lead Sales ke pending mein atak jaati thi). Admin/md/tl ye kar sakte hain.
+  if (role === 'ldr' && leadAtSales) throw new Error('handed-off');
+
   // galat data guard — LDR Sales-stage set na kar sake, aur (agar list di ho) list ke bahar kuch na jaaye
   if (!isSales && SALES_ONLY_STAGES.includes(stage)) throw new Error('bad-stage-ldr');
   if (Array.isArray(allowedStages) && allowedStages.length && !allowedStages.map((s) => s.toLowerCase()).includes(stage)) {

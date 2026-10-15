@@ -1,3 +1,4 @@
+import { resolveState } from '../lib/states';
 import { useMemo, useRef, useState } from 'react';
 import { useAuth } from '../auth';
 import { useT, fill } from '../i18n';
@@ -72,7 +73,7 @@ export default function BulkImport() {
           name: (idx.name != null ? r[idx.name] : '').trim(),
           phone, email: idx.email != null ? r[idx.email] : '',
           company: idx.company != null ? r[idx.company] : '',
-          city: idx.city != null ? r[idx.city] : '', state: idx.state != null ? r[idx.state] : '',
+          city: idx.city != null ? r[idx.city] : '', state: idx.state != null ? resolveState(r[idx.state]) : '', _stateBad: idx.state != null && !!String(r[idx.state] || '').trim() && !resolveState(r[idx.state]),
           source: idx.source != null ? r[idx.source] : 'Bulk Import',
           _valid: p.valid, _digits: p.digits, _formatted: p.formatted,
           _dup: false,
@@ -106,6 +107,7 @@ export default function BulkImport() {
         valid: parsed.filter((r) => r._valid).length,
         invalid: parsed.filter((r) => !r._valid).length,
         dup: parsed.filter((r) => r._dup).length,
+        stateBad: parsed.filter((r) => r._stateBad && r._valid && !r._dup).length,
         importable: importable.length,
         byName: Object.entries(byName).sort((a, b) => b[1] - a[1]),
         notFound: Object.entries(notFound).sort((a, b) => b[1] - a[1]),
@@ -171,6 +173,9 @@ export default function BulkImport() {
             <div className="stat-card"><div className="val" style={{ color: 'var(--warning)' }}>{analysis.dup}</div><div className="label">{t('blkDup')}</div></div>
             <div className="stat-card"><div className="val" style={{ color: 'var(--danger)' }}>{analysis.invalid}</div><div className="label">{t('blkInvalid')}</div></div>
           </div>
+          {analysis.stateBad > 0 && (
+            <div className="alert alert-warn" style={{ marginTop: 8 }}><i className="fas fa-triangle-exclamation" /> {fill(t('blkStateBad'), { n: analysis.stateBad })}</div>
+          )}
 
           <div className="bi-assign">
             <div className="bi-assign-h">{t('blkFileAssign')}</div>

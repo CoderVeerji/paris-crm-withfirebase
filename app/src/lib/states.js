@@ -46,18 +46,24 @@ function lev(a, b) {
 
 const inList = (key) => LIST.find((x) => x.key === key);
 
-/** Jo likha hai use State_List ke sahi naam mein badlo. Pehchaan na paye to jaisa likha (trim karke) wahi chhod do — data khona nahi. */
-export function normalizeState(raw) {
-  const txt = String(raw == null ? '' : raw).replace(/\s+/g, ' ').trim();
-  if (!txt) return '';
+function resolve(raw) {
+  const txt = String(raw == null ? '' : raw).replace(/s+/g, ' ').trim();
+  if (!txt) return { name: '', ok: true };
   const key = compact(txt);
   const exact = inList(key);
-  if (exact) return exact.name;
+  if (exact) return { name: exact.name, ok: true };
   const target = Object.prototype.hasOwnProperty.call(ALIAS, key) ? ALIAS[key] : BUILTIN[key];
-  if (target) { const hit = inList(compact(target)); return hit ? hit.name : target; }
+  if (target) { const hit = inList(compact(target)); if (hit) return { name: hit.name, ok: true }; }
   if (key.length >= 6) { // typo ("utter pardesh", "maharastra") — sirf tab jab ek hi naam nazdeek ho
     const near = LIST.filter((x) => x.key.length >= 6 && lev(key, x.key) <= 2);
-    if (near.length === 1) return near[0].name;
+    if (near.length === 1) return { name: near[0].name, ok: true };
   }
-  return txt;
+  return { name: txt, ok: false };
 }
+
+/** Jo likha hai use State_List ke sahi naam mein badlo. Pehchaan na paye to jaisa likha (trim karke) wahi chhod do — data khona nahi. */
+export function normalizeState(raw) { return resolve(raw).name; }
+
+/** STRICT — sirf State_List ka naam (ya uska alias/typo) lautata hai, warna ''. Bulk import jaisi jagah ke liye,
+ *  jahan user ne free text diya ho aur hum list se bahar ka naam save nahi karna chahte. */
+export function resolveState(raw) { const r = resolve(raw); return r.ok ? r.name : ''; }

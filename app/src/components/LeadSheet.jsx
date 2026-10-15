@@ -1,3 +1,5 @@
+import ListSelect from './ListSelect';
+import { normalizeState } from '../lib/states';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useAuth } from '../auth';
 import { useT, fill } from '../i18n';
@@ -189,6 +191,7 @@ export default function LeadSheet({ lead: leadIn, onClose, onSaved }) {
       console.error(e2);
       fail(e2.message === 'remark-required' ? t('remarkReq')
         : (e2.message === 'bad-stage-ldr' || e2.message === 'bad-stage') ? t('badStage')
+        : e2.message === 'handed-off' ? t('lsHandedOff')
           : t('saveFail'));
     } finally {
       setSaving(false);
@@ -252,7 +255,10 @@ export default function LeadSheet({ lead: leadIn, onClose, onSaved }) {
           <button className={tab === 'details' ? 'on' : ''} onClick={() => setTab('details')}>{t('tabDetails')}</button>
         </div>
 
-        {tab === 'action' && (
+        {tab === 'action' && role === 'ldr' && leadAtSales && (
+          <div className="alert alert-warn"><i className="fas fa-lock" /> {t('lsHandedOff')}</div>
+        )}
+        {tab === 'action' && !(role === 'ldr' && leadAtSales) && (
           <form onSubmit={save} onKeyDown={blockEnterSubmit} className="ls-form">
             <div ref={errRef}>{err && <div className="alert alert-error">{err}</div>}</div>
 
@@ -487,8 +493,13 @@ function EditInfo({ lead, t, actor, onDone }) {
       {[['company', t('company')], ['city', t('nlCity')], ['state', t('nlState')], ['email', 'Email'], ['source', t('source')], ['alt_phone', t('nlAltPhone')]].map(([k, label]) => (
         <div className="form-group" key={k}>
           <label>{label}</label>
-          <input className="form-control" type={k === 'email' ? 'email' : k.includes('phone') ? 'tel' : 'text'}
-            value={v[k]} onChange={(e) => setK(k, e.target.value)} />
+          {k === 'state' || k === 'source' ? (
+            <ListSelect value={k === 'state' ? (normalizeState(v[k]) || v[k]) : v[k]} onChange={(x) => setK(k, x)}
+              options={splitList(k === 'state' ? cfg.settings?.State_List : cfg.settings?.Lead_Sources)} />
+          ) : (
+            <input className="form-control" type={k === 'email' ? 'email' : k.includes('phone') ? 'tel' : 'text'}
+              value={v[k]} onChange={(e) => setK(k, e.target.value)} />
+          )}
         </div>
       ))}
       <button className="btn btn-primary btn-block" disabled={busy || !lenOk}>{busy ? t('wait') : t('save')}</button>

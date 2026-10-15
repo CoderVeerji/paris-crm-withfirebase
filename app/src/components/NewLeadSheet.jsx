@@ -1,3 +1,4 @@
+import ListSelect from './ListSelect';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { doc, getDoc } from 'firebase/firestore';
 import { db } from '../firebase';
@@ -278,14 +279,12 @@ export default function NewLeadSheet({ onClose, onCreated, onOpenExisting }) {
           <div className="form-group"><label>{t('nlCity')}</label>
             <input className="form-control" value={f.city} onChange={(e) => set('city', e.target.value)} /></div>
           <div className="form-group"><label>{t('nlState')}</label>
-            <input className="form-control" list="statelist" value={f.state} onChange={(e) => set('state', e.target.value)} />
-            <datalist id="statelist">{splitList(cfg.settings?.State_List).map((s) => <option key={s} value={s} />)}</datalist>
+            <ListSelect value={f.state} onChange={(v) => set('state', v)} options={splitList(cfg.settings?.State_List)} />
           </div>
         </div>
 
         <div className="form-group"><label>{t('source')}</label>
-          <input className="form-control" list="srclist" value={f.source} onChange={(e) => set('source', e.target.value)} placeholder="—" />
-          <datalist id="srclist">{sources.map((s) => <option key={s} value={s} />)}</datalist>
+          <ListSelect value={f.source} onChange={(v) => set('source', v)} options={sources} />
         </div>
 
         {!more && <button type="button" className="opt-add" onClick={() => setMore(true)}><i className="fas fa-plus" /> {t('nlMore')}</button>}

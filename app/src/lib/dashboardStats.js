@@ -387,9 +387,12 @@ const DASH_BK = ['fresh', 'reinq', 'sched', 'offsched'];
  *  Ye un ids ko live check karta hai (1 read / id, 30-30 ke chunk) aur wo Set lautata hai jo range-end ke baad
  *  kaam ho chuki hain (last_action_at > range end), archive ho gayi, ya delete. Record (total) wahi rehta hai —
  *  sirf pending ghatta hai aur "baad mein clear" alag ginti hota hai. Free-tier guard: LIVE_RECHECK_CAP se
- *  zyada ids ho to skip (null) — card frozen number dikhata hai.  Return null = check nahi hua. */
+ *  zyada ids ho to skip (null) — card frozen number dikhata hai.  Return null = check nahi hua.
+ *  opts.teamRole==='sales': jo lead ab 'qualified' nahi (LDR/admin ne lost/wapas kar di) wo Sales ki zimmedari nahi
+ *  — pending se hat jaati hai. opts.afterEnd=false (range mein aaj shaamil) to "range ke baad kaam hua" check nahi hota. */
 export const LIVE_RECHECK_CAP = 600;
-export async function laterClearedIds(ids, endDay) {
+export async function laterClearedIds(ids, endDay, opts = {}) {
+  const { teamRole = '', afterEnd = true } = opts;
   const list = [...new Set(ids)];
   if (list.length === 0) return new Set();
   if (list.length > LIVE_RECHECK_CAP) return null;
@@ -402,7 +405,8 @@ export async function laterClearedIds(ids, endDay) {
     seen.add(d.id);
     const l = d.data();
     const la = l.last_action_at?.toMillis ? l.last_action_at.toMillis() : 0;
-    if (l.archived || la > endMs) cleared.add(d.id);
+    const notSales = teamRole === 'sales' && String(l.status || '').toLowerCase() !== 'qualified';
+    if (l.archived || notSales || (afterEnd && la > endMs)) cleared.add(d.id);
   }));
   list.forEach((id) => { if (!seen.has(id)) cleared.add(id); }); // delete/recycle ho chuki
   return cleared;
@@ -466,9 +470,9 @@ export async function getDashRange(args) {
     // Poori range beet chuki hai -> frozen pending ko live recheck: baad mein clear hui leads pending se hatao
     const lateIds = { fresh: [], reinq: [], sched: [], offsched: [] };
     let liveSkipped = false;
-    if (!wantToday && days.length) {
+    if (days.length) {
       const allPend = DASH_BK.flatMap((bk) => [...M[bk].pend]);
-      const cleared = await laterClearedIds(allPend, days[days.length - 1]).catch(() => null);
+      const cleared = await laterClearedIds(allPend, days[days.length - 1], { teamRole, afterEnd: !wantToday }).catch(() => null);
       if (cleared === null) liveSkipped = allPend.length > 0;
       else for (const bk of DASH_BK) for (const id of [...M[bk].pend]) if (cleared.has(id)) { M[bk].pend.delete(id); lateIds[bk].push(id); }
     }

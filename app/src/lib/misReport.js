@@ -95,10 +95,10 @@ async function misReportUncached({ teamRole, members, from, to }) {
 
   // Poori range beet chuki hai to frozen pending ko live recheck (wahi rule jo dashboard mein) — score/worked
   // nahi badalta (us din ka record), sirf pending ghatta hai.
-  if (days[days.length - 1] < today) {
+  {
     const everyAcc = Object.values(perUid).flatMap((u) => [u.leads, u.followups]);
     const allPend = everyAcc.flatMap((a) => [...a.pend]);
-    const cleared = await laterClearedIds(allPend, days[days.length - 1]).catch(() => null);
+    const cleared = await laterClearedIds(allPend, days[days.length - 1], { teamRole, afterEnd: days[days.length - 1] < today }).catch(() => null);
     if (cleared) everyAcc.forEach((a) => { for (const id of [...a.pend]) if (!a.work.has(id) && cleared.has(id)) { a.pend.delete(id); a.late.add(id); } });
   }
 
