@@ -442,6 +442,7 @@ export default function LeadSheet({ lead: leadIn, onClose, onSaved }) {
 }
 
 function EditInfo({ lead, t, actor, onDone }) {
+  const cfg = useConfig(); // State_List / Lead_Sources dropdowns ke liye
   const split = splitDigits(lead.phone_digits);
   const [cc, setCc] = useState(split.cc);
   const [num, setNum] = useState(split.num);
