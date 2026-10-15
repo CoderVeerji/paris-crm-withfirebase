@@ -1,3 +1,4 @@
+import Select from './Select';
 import { useEffect, useMemo, useState } from 'react';
 import { useT } from '../i18n';
 import { useConfig, userName } from '../config';
@@ -136,10 +137,10 @@ export default function LeadsSummary({ leads, loading, capped, dateField, side, 
 
       {allPeople.length > 1 && (
         <div className="sum-filters">
-          <select className="form-control" value={person} onChange={(e) => setPerson(e.target.value)}>
+          <Select className="form-control" value={person} onChange={(e) => setPerson(e.target.value)}>
             <option value="">{t('lfAllPeople')}</option>
             {allPeople.map(([pk, n]) => <option key={pk} value={pk}>{n}</option>)}
-          </select>
+          </Select>
           {person && (
             <button type="button" className="chip" onClick={() => setPerson('')}>
               <i className="fas fa-xmark" /> {t('dClear')}

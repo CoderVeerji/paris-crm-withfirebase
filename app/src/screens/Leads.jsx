@@ -1,3 +1,4 @@
+import Select from '../components/Select';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useAuth } from '../auth';
 import { useT, fill } from '../i18n';
@@ -362,7 +363,7 @@ export default function Leads({ initialView = 'all' }) {
                 ))}
               </div>
             )}
-            <select className="form-control lf-sel" value={status} onChange={(e) => { setStatus(e.target.value); setFlag(''); }}>
+            <Select className="form-control lf-sel" value={status} onChange={(e) => { setStatus(e.target.value); setFlag(''); }}>
               <option value="">{t('lfAllStatus')}</option>
               {(team === '' || team === 'ldr') && (
                 <optgroup label={`— ${t('mecaLdrTeam')} —`}>
@@ -374,19 +375,19 @@ export default function Leads({ initialView = 'all' }) {
                   {statusGroups.sales.map((s) => <option key={`sales:${s}`} value={`sales:${s}`}>{s === 'new' ? t('lfStNewQ') : fmtStatus(s)}</option>)}
                 </optgroup>
               )}
-            </select>
-            <select className="form-control lf-sel" value={member} onChange={(e) => {
+            </Select>
+            <Select className="form-control lf-sel" value={member} onChange={(e) => {
               const m = e.target.value; setMember(m);
               const u = people.find((x) => x.id === m);
               if (u && !team) { setTeam(u.role === 'sales' ? 'sales' : 'ldr'); setStatus(''); setFlag(''); } // team khaali ho to member ke role wali team lagao
             }}>
               <option value="">{t('lfAllPeople')}</option>
               {people.map((u) => <option key={u.id} value={u.id}>{u.full_name}</option>)}
-            </select>
-            <select className="form-control lf-sel" value={flag} onChange={(e) => { setFlag(e.target.value); setStatus(''); }}>
+            </Select>
+            <Select className="form-control lf-sel" value={flag} onChange={(e) => { setFlag(e.target.value); setStatus(''); }}>
               <option value="">{t('lfMore')}</option>
               {FLAG_OPTS.filter((f) => !f.oversight || isOversight).map((f) => <option key={f.v} value={f.v}>{t(f.tk)}</option>)}
-            </select>
+            </Select>
             {(team || status || flag || member) && (
               <button type="button" className="lf-clear" onClick={() => { setTeam(role === 'sales' ? 'sales' : role === 'ldr' ? 'ldr' : ''); setStatus(''); setFlag(''); setMember(''); }}>
                 <i className="fas fa-xmark" /> {t('dClear')}
@@ -543,15 +544,15 @@ function BulkAssignSheet({ cfg, busy, onClose, onGo }) {
   return (
     <Sheet title={t('assignSales')} onClose={onClose}>
       <div className="form-group"><label>LDR</label>
-        <select className="form-control" value={ldr_uid} onChange={(e) => setLdr(e.target.value)}>
+        <Select className="form-control" value={ldr_uid} onChange={(e) => setLdr(e.target.value)}>
           <option value="">— koi change nahi —</option>
           {ldrUsers(cfg).map((u) => <option key={u.id} value={u.id}>{u.full_name}</option>)}
-        </select></div>
+        </Select></div>
       <div className="form-group"><label>Sales</label>
-        <select className="form-control" value={sales_uid} onChange={(e) => setSales(e.target.value)}>
+        <Select className="form-control" value={sales_uid} onChange={(e) => setSales(e.target.value)}>
           <option value="">— koi change nahi —</option>
           {salesUsers(cfg).map((u) => <option key={u.id} value={u.id}>{u.full_name}</option>)}
-        </select></div>
+        </Select></div>
       <button className="btn btn-primary btn-block" disabled={busy || (!ldr_uid && !sales_uid)}
         onClick={() => onGo({ ldr_uid: ldr_uid || null, sales_uid: sales_uid || null })}>
         {busy ? t('wait') : t('assignSales')}

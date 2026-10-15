@@ -1,3 +1,4 @@
+import Select from './Select';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useT, fill } from '../i18n';
 import { useConfig, salesUsers, workerUsers, splitList, userName } from '../config';
@@ -299,10 +300,10 @@ export default function TeamDashboard({ mode, role, uid, team = '', onOpenLead }
           {custom && <button type="button" className="chip" onClick={() => { setCFrom(''); setCTo(''); }}><i className="fas fa-xmark" /> {t('dClear')}</button>}
         </div>
         {isAdmin && (
-          <select className="form-control" style={{ marginTop: 10 }} value={memberUid} onChange={(e) => setMemberUid(e.target.value)}>
+          <Select className="form-control" style={{ marginTop: 10 }} value={memberUid} onChange={(e) => setMemberUid(e.target.value)}>
             <option value="">{t('dWholeTeam')}</option>
             {members.map((u) => <option key={u.id} value={u.id}>{u.full_name}</option>)}
-          </select>
+          </Select>
         )}
       </div>
 

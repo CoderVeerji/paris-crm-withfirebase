@@ -1,3 +1,4 @@
+import Select from '../components/Select';
 import { useEffect, useMemo, useState } from 'react';
 import { useAuth } from '../auth';
 import { useT, fill } from '../i18n';
@@ -88,11 +89,11 @@ export default function WeeklyReport() {
   return (
     <div className="wk">
       <div className="wk-bar">
-        <select className="form-control" value={cur?.id || ''} onChange={(e) => setSelId(e.target.value)}>
+        <Select className="form-control" value={cur?.id || ''} onChange={(e) => setSelId(e.target.value)}>
           {rows.map((x) => (
             <option key={x.id} value={x.id}>{x.has ? '● ' : '○ '}{x.label}</option>
           ))}
-        </select>
+        </Select>
         <div className="wk-bar-btns">
           {rep && <button type="button" className="chip" onClick={copyText}><i className="fas fa-comment-dots" /> {t('lmCopyMsg')}</button>}
           {isAdmin && <button type="button" className="chip" disabled={busy} onClick={() => generate(cur?.range)} title={t('wkGenNow')}>

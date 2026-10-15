@@ -1,3 +1,4 @@
+import Select from '../components/Select';
 import { useEffect, useState } from 'react';
 import { doc, getDoc } from 'firebase/firestore';
 import { db } from '../firebase';
@@ -196,10 +197,10 @@ function BucketLeads({ bucket, onOpenLead, onChanged }) {
     <>
       <div className="toolbar" style={{ marginBottom: 10 }}>
         <input className="form-control" placeholder={t('search')} value={q} onChange={(e) => { setQ(e.target.value); setPage(0); }} />
-        <select className="form-control" value={ownerF} onChange={(e) => { setOwnerF(e.target.value); setPage(0); }}>
+        <Select className="form-control" value={ownerF} onChange={(e) => { setOwnerF(e.target.value); setPage(0); }}>
           <option value="">{t('dhAllOwners')}</option>
           {allUsers.map((u) => <option key={u.id} value={u.id}>{u.full_name} ({u.role})</option>)}
-        </select>
+        </Select>
         <button type="button" className="btn btn-ghost" style={{ flex: '0 0 auto', minWidth: 0 }} disabled={!filtered.length} onClick={exportCsv}><i className="fas fa-file-csv" /> CSV</button>
       </div>
 
@@ -240,17 +241,17 @@ function BucketLeads({ bucket, onOpenLead, onChanged }) {
                   <div className="dh-reassign">
                     <div className="form-group" style={{ margin: 0, flex: 1 }}>
                       <label style={{ fontSize: 11 }}>LDR</label>
-                      <select className="form-control" defaultValue={l.ldr_uid || ''} onChange={(e) => doReassign(l, { ldr_uid: e.target.value })}>
+                      <Select className="form-control" defaultValue={l.ldr_uid || ''} onChange={(e) => doReassign(l, { ldr_uid: e.target.value })}>
                         <option value="">— {t('dhUnassign')} —</option>
                         {ldrs.map((u) => <option key={u.id} value={u.id}>{u.full_name}</option>)}
-                      </select>
+                      </Select>
                     </div>
                     <div className="form-group" style={{ margin: 0, flex: 1 }}>
                       <label style={{ fontSize: 11 }}>Sales</label>
-                      <select className="form-control" defaultValue={l.sales_uid || ''} onChange={(e) => doReassign(l, { sales_uid: e.target.value })}>
+                      <Select className="form-control" defaultValue={l.sales_uid || ''} onChange={(e) => doReassign(l, { sales_uid: e.target.value })}>
                         <option value="">— {t('dhUnassign')} —</option>
                         {sales.map((u) => <option key={u.id} value={u.id}>{u.full_name}</option>)}
-                      </select>
+                      </Select>
                     </div>
                   </div>
                 )}
@@ -271,10 +272,10 @@ function BucketLeads({ bucket, onOpenLead, onChanged }) {
       {selRows.length > 0 && (
         <div className="bulkbar">
           <span>{fill(t('dhNsel'), { n: selRows.length })}</span>
-          <select className="form-control" style={{ minWidth: 160 }} value={bulkTo} onChange={(e) => setBulkTo(e.target.value)}>
+          <Select className="form-control" style={{ minWidth: 160 }} value={bulkTo} onChange={(e) => setBulkTo(e.target.value)}>
             <option value="">— {t('dhReassignTo')} —</option>
             {allUsers.map((u) => <option key={u.id} value={u.id}>{u.full_name} ({u.role})</option>)}
-          </select>
+          </Select>
           <button className="btn btn-ghost" disabled={busy || !bulkTo} onClick={bulkReassign}>{busy ? t('wait') : t('go')}</button>
           <button className="btn btn-ghost" onClick={() => setSel(new Set())}><i className="fas fa-xmark" /></button>
         </div>

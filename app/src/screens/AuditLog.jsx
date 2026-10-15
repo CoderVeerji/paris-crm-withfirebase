@@ -1,3 +1,4 @@
+import Select from '../components/Select';
 import { useCallback, useMemo, useState } from 'react';
 import { useT } from '../i18n';
 import { fmtDateTime } from '../lib/format';
@@ -45,10 +46,10 @@ export default function AuditLog() {
         <input className="form-control" type="date" value={to} onChange={(e) => { setTo(e.target.value); setQuick(''); }} />
       </div>
       {actionTypes.length > 1 && (
-        <select className="form-control" style={{ marginBottom: 10 }} value={actionFilter} onChange={(e) => setActionFilter(e.target.value)}>
+        <Select className="form-control" style={{ marginBottom: 10 }} value={actionFilter} onChange={(e) => setActionFilter(e.target.value)}>
           <option value="">{t('audAllTypes')}</option>
           {actionTypes.map((a) => <option key={a} value={a}>{LABEL[a] || a}</option>)}
-        </select>
+        </Select>
       )}
 
       {loading ? Array.from({ length: 8 }).map((_, i) => <div key={i} className="skeleton" style={{ height: 62, marginBottom: 8 }} />)

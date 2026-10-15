@@ -1,3 +1,4 @@
+import Select from '../components/Select';
 import React, { useEffect, useState } from 'react';
 import { useAuth } from '../auth';
 import { useConfig } from '../config';
@@ -286,9 +287,9 @@ export default function Settings() {
                     <div className="rule-input">
                       <input className="form-control" type="number" min="1" style={{ maxWidth: 90 }}
                         value={n} onChange={(e) => setV(r.key, `${e.target.value || 1}${u}`)} />
-                      <select className="form-control" value={u} onChange={(e) => setV(r.key, `${n || 1}${e.target.value}`)}>
+                      <Select className="form-control" value={u} onChange={(e) => setV(r.key, `${n || 1}${e.target.value}`)}>
                         {DUR_UNITS.map((x) => <option key={x.v} value={x.v}>{t(x.tk)}</option>)}
-                      </select>
+                      </Select>
                     </div>
                   )}
                 </div>
@@ -429,10 +430,10 @@ export default function Settings() {
             {cfg.settings?.ai_ready && <p className="field-hint" style={{ marginTop: -4 }}><i className="fas fa-circle-check" style={{ color: 'var(--success)' }} /> {t('sAiOn')}</p>}
             <div className="form-group">
               <label>{t('sAiProvider')}</label>
-              <select className="form-control" value={aiProvider} onChange={(e) => { setAiProvider(e.target.value); setAiModel(e.target.value === 'anthropic' ? 'claude-haiku-4-5-20251001' : 'openai/gpt-oss-20b'); }}>
+              <Select className="form-control" value={aiProvider} onChange={(e) => { setAiProvider(e.target.value); setAiModel(e.target.value === 'anthropic' ? 'claude-haiku-4-5-20251001' : 'openai/gpt-oss-20b'); }}>
                 <option value="nvidia">NVIDIA (build.nvidia.com)</option>
                 <option value="anthropic">Anthropic</option>
-              </select>
+              </Select>
             </div>
             <div className="form-group">
               <label>{t('sAiKey')}</label>
@@ -441,9 +442,9 @@ export default function Settings() {
             </div>
             <div className="form-group">
               <label>{t('sAiModel')}</label>
-              <select className="form-control" value={aiModel} onChange={(e) => setAiModel(e.target.value)}>
+              <Select className="form-control" value={aiModel} onChange={(e) => setAiModel(e.target.value)}>
                 {AI_MODELS.map(([v, lbl]) => <option key={v} value={v}>{lbl}</option>)}
-              </select>
+              </Select>
             </div>
             <button className="btn btn-primary btn-block" disabled={aiBusy || !aiKey.trim()} onClick={saveAi}>
               {aiBusy ? t('wait') : t('save')}
@@ -452,12 +453,12 @@ export default function Settings() {
             <div className="ls-subhead">{t('pushTestTitle')}</div>
             <p style={{ fontSize: 12, color: 'var(--muted)', marginBottom: 8 }}>{t('pushTestHelp')}</p>
             <div style={{ display: 'flex', gap: 8 }}>
-              <select className="form-control" value={testUid} onChange={(e) => setTestUid(e.target.value)}>
+              <Select className="form-control" value={testUid} onChange={(e) => setTestUid(e.target.value)}>
                 <option value="">— {t('uName')} —</option>
                 {cfg.users.filter((u) => (u.status || 'active') === 'active').map((u) => (
                   <option key={u.id} value={u.id}>{u.full_name} ({u.role})</option>
                 ))}
-              </select>
+              </Select>
               <button className="btn btn-primary" disabled={testBusy || !testUid} onClick={sendTest} style={{ flexShrink: 0 }}>
                 {testBusy ? t('wait') : t('pushTestBtn')}
               </button>

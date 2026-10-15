@@ -1,3 +1,4 @@
+import Select from './Select';
 import ListSelect from './ListSelect';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { doc, getDoc } from 'firebase/firestore';
@@ -257,10 +258,10 @@ export default function NewLeadSheet({ onClose, onCreated, onOpenExisting }) {
               </>
             ) : (
               <>
-                <select className="form-control" value={reassignUid} onChange={(e) => setReassignUid(e.target.value)}>
+                <Select className="form-control" value={reassignUid} onChange={(e) => setReassignUid(e.target.value)}>
                   <option value="">{t('nlPickPerson')}</option>
                   {reassignOptions.map((u) => <option key={u.id} value={u.id}>{u.full_name} ({u.role})</option>)}
-                </select>
+                </Select>
                 <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
                   <button type="button" className="btn btn-ghost" style={{ flex: 1 }} onClick={() => setReassignOpen(false)}>{t('cancel')}</button>
                   <button type="button" className="btn btn-primary" style={{ flex: 2 }} disabled={!reassignUid || resolveBusy} onClick={reassignToOther}>
@@ -299,9 +300,9 @@ export default function NewLeadSheet({ onClose, onCreated, onOpenExisting }) {
 
         {role !== 'sales' && (
           <div className="form-group"><label>{t('nextStage')}</label>
-            <select className="form-control" value={f.stage} onChange={(e) => set('stage', e.target.value)}>
+            <Select className="form-control" value={f.stage} onChange={(e) => set('stage', e.target.value)}>
               {stages.map((s) => <option key={s.v} value={s.v}>{s.l}</option>)}
-            </select></div>
+            </Select></div>
         )}
 
         {needsDate && (
@@ -311,10 +312,10 @@ export default function NewLeadSheet({ onClose, onCreated, onOpenExisting }) {
 
         {isQualified && role !== 'sales' && (
           <div className="form-group"><label style={{ color: 'var(--navy-accent)' }}>{t('assignSales')}</label>
-            <select className="form-control" value={f.sales_uid} onChange={(e) => set('sales_uid', e.target.value)}>
+            <Select className="form-control" value={f.sales_uid} onChange={(e) => set('sales_uid', e.target.value)}>
               <option value="">{t('assignLater')}</option>
               {salesUsers(cfg).map((u) => <option key={u.id} value={u.id}>{u.full_name}</option>)}
-            </select>
+            </Select>
             {!f.sales_uid && <p className="field-hint">{t('assignAutoHint')}</p>}</div>
         )}
 

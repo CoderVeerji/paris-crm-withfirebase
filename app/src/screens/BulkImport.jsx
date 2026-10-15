@@ -1,3 +1,4 @@
+import Select from '../components/Select';
 import { resolveState } from '../lib/states';
 import { useMemo, useRef, useState } from 'react';
 import { useAuth } from '../auth';
@@ -205,9 +206,9 @@ export default function BulkImport() {
                 <span><b>{t('blkRestUser')}</b></span>
               </label>
               {fallback !== 'auto' && fallback !== 'none' && (
-                <select className="form-control" value={fallback} onChange={(e) => setFallback(e.target.value)} style={{ margin: '2px 0 6px 26px', width: 'calc(100% - 26px)' }}>
+                <Select className="form-control" value={fallback} onChange={(e) => setFallback(e.target.value)} style={{ margin: '2px 0 6px 26px', width: 'calc(100% - 26px)' }}>
                   {ldrPool.map((u) => <option key={u.id} value={u.id}>{u.full_name}</option>)}
-                </select>
+                </Select>
               )}
               <label className="bi-radio">
                 <input type="radio" checked={fallback === 'none'} onChange={() => setFallback('none')} />

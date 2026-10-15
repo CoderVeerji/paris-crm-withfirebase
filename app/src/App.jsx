@@ -236,23 +236,28 @@ export default function App() {
             ))}
         </ul>
         <div className="sidebar-foot">
-          <button type="button" className="sb-update" onClick={() => reloadForUpdate()}>
-            <i className="fas fa-arrows-rotate" /> {t('updateApp')}
+          {/* Update: hamesha ek compact row (manual refresh ka rasta); naya version aaye to accent + dot */}
+          <button type="button" className={`sb-row sb-update ${updateHash ? 'has-update' : ''}`} onClick={() => reloadForUpdate(updateHash || undefined)}>
+            <i className="fas fa-arrows-rotate" /><span>{t('updateApp')}</span>{updateHash && <b className="sb-dot" aria-hidden="true" />}
           </button>
           <InstallAppButton variant="sidebar" />
-          <div className="sidebar-lang">
-            {LANGS.map((l) => (
-              <button key={l.code} className={lang === l.code ? 'active' : ''} onClick={() => setLang(l.code)}>{l.label}</button>
-            ))}
+          <div className="sb-tools">
+            <div className="sb-seg sb-seg-lang" role="radiogroup" aria-label={t('sbLanguage')}>
+              {LANGS.map((l) => (
+                <button key={l.code} type="button" role="radio" aria-checked={lang === l.code} className={lang === l.code ? 'active' : ''}
+                  title={l.label} aria-label={l.label} onClick={() => setLang(l.code)}>{l.short}</button>
+              ))}
+            </div>
+            <div className="sb-seg sb-seg-theme" role="radiogroup" aria-label={t('thAppearance')}>
+              {[['light', 'fa-sun'], ['system', 'fa-circle-half-stroke'], ['dark', 'fa-moon']].map(([m, ic]) => (
+                <button key={m} type="button" role="radio" aria-checked={themeMode === m} className={themeMode === m ? 'active' : ''}
+                  onClick={() => pickTheme(m)} title={t(`th${m[0].toUpperCase()}${m.slice(1)}`)} aria-label={t(`th${m[0].toUpperCase()}${m.slice(1)}`)}>
+                  <i className={`fas ${ic}`} />
+                </button>
+              ))}
+            </div>
           </div>
-          <div className="sidebar-lang sidebar-theme">
-            {[['light', 'fa-sun'], ['system', 'fa-circle-half-stroke'], ['dark', 'fa-moon']].map(([m, ic]) => (
-              <button key={m} className={themeMode === m ? 'active' : ''} onClick={() => pickTheme(m)} title={t(`th${m[0].toUpperCase()}${m.slice(1)}`)} aria-label={t(`th${m[0].toUpperCase()}${m.slice(1)}`)}>
-                <i className={`fas ${ic}`} />
-              </button>
-            ))}
-          </div>
-          <button className="logout" onClick={signOut}><i className="fas fa-arrow-right-from-bracket" /> {t('logout')}</button>
+          <button type="button" className="sb-row sb-logout" onClick={signOut}><i className="fas fa-arrow-right-from-bracket" /><span>{t('logout')}</span></button>
         </div>
       </aside>
 

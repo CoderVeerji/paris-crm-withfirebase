@@ -30,8 +30,8 @@ export default function InstallAppButton({ variant = 'card' }) {
 
   const btn = variant === 'sidebar'
     ? (
-      <button type="button" className="sidebar-install" onClick={onClick}>
-        <i className="fas fa-circle-down" /> {t('pwaInstall')}
+      <button type="button" className="sb-row sidebar-install" onClick={onClick}>
+        <i className="fas fa-circle-down" /><span>{t('pwaInstall')}</span>
       </button>
     )
     : (

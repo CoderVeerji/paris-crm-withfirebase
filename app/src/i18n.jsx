@@ -2,9 +2,9 @@
 import { createContext, useContext, useEffect, useState } from 'react';
 
 export const LANGS = [
-  { code: 'en', label: 'English' },
-  { code: 'hi', label: 'हिंदी' },
-  { code: 'hinglish', label: 'Hinglish' },
+  { code: 'en', label: 'English', short: 'EN' },
+  { code: 'hi', label: 'हिंदी', short: 'हि' },
+  { code: 'hinglish', label: 'Hinglish', short: 'Hi' },
 ];
 
 const STR = {
@@ -288,7 +288,7 @@ const STR = {
     pushTestTitle:'Test push notification', pushTestHelp:'Pick a person and send a real push instantly — the fastest way to check if push is actually reaching their device, no need to create a test lead.',
     pushTestBtn:'Send test push', pushTestSent:'Test push sent — check that device\'s lock screen ✓',
     sTabGeneral:'General', sTabAutomation:'Automation', sTabNotify:'Notifications', sTabTools:'Data Tools', sTabRoles:'Roles & Permissions', sTabAdSpend:'Ad Spend', sTabTheme:'Theme',
-    thLight:'Light', thDark:'Dark', thSystem:'System', thAppearance:'Appearance', thDevice:'This choice is saved on this device only.',
+    thLight:'Light', thDark:'Dark', thSystem:'System', sbLanguage:'Language', thAppearance:'Appearance', thDevice:'This choice is saved on this device only.',
     thBrand:'Brand colour', thBrandHelp:'Accent colour for buttons, highlights and headings.', thBrandDefault:'Default (navy)',
     sAdIntro:'Enter your ad budget so the dashboard can show cost-per-lead by source.',
     sAdStanding:'Daily budget (runs every day)', sAdStandingHelp:'The amount you normally spend per day on each platform. Days you paused are handled by the import below.',
@@ -606,7 +606,7 @@ const STR = {
     pushTestTitle:'टेस्ट पुश नोटिफिकेशन', pushTestHelp:'किसी को चुनें और तुरंत एक असली पुश भेजें — बिना टेस्ट लीड बनाए, ये सबसे तेज़ तरीका है ये जांचने का कि पुश उनके डिवाइस तक पहुंच रहा है या नहीं।',
     pushTestBtn:'टेस्ट पुश भेजें', pushTestSent:'टेस्ट पुश भेजा गया — उस डिवाइस की लॉक स्क्रीन चेक करें ✓',
     sTabGeneral:'जनरल', sTabAutomation:'ऑटोमेशन', sTabNotify:'नोटिफिकेशन', sTabTools:'डेटा टूल्स', sTabRoles:'रोल्स & परमिशन', sTabAdSpend:'ऐड खर्च', sTabTheme:'थीम',
-    thLight:'लाइट', thDark:'डार्क', thSystem:'सिस्टम', thAppearance:'दिखावट', thDevice:'यह चुनाव सिर्फ़ इसी डिवाइस पर सेव होता है।',
+    thLight:'लाइट', thDark:'डार्क', thSystem:'सिस्टम', sbLanguage:'भाषा', thAppearance:'दिखावट', thDevice:'यह चुनाव सिर्फ़ इसी डिवाइस पर सेव होता है।',
     thBrand:'ब्रांड रंग', thBrandHelp:'बटन, हाइलाइट और हेडिंग का एक्सेंट रंग।', thBrandDefault:'डिफ़ॉल्ट (नेवी)',
     sAdIntro:'अपना ऐड बजट डालें ताकि डैशबोर्ड सोर्स के हिसाब से per-lead कॉस्ट दिखा सके।',
     sAdStanding:'रोज़ का बजट (हर दिन चलता है)', sAdStandingHelp:'हर प्लेटफ़ॉर्म पर आप रोज़ आमतौर पर कितना खर्च करते हैं। जिन दिनों बंद था वो नीचे import से हैंडल करें।',
@@ -923,7 +923,7 @@ const STR = {
     pushTestTitle:'Test push notification', pushTestHelp:'Kisi ko chuno aur turant ek asli push bhejo — koi test lead banaye bina, ye sabse fast tareeka hai check karne ka ki push unke device tak pahunch raha hai ya nahi.',
     pushTestBtn:'Test push bhejo', pushTestSent:'Test push bhej diya — us device ki lock screen check karo ✓',
     sTabGeneral:'General', sTabAutomation:'Automation', sTabNotify:'Notifications', sTabTools:'Data Tools', sTabRoles:'Roles & Permissions', sTabAdSpend:'Ad Kharcha', sTabTheme:'Theme',
-    thLight:'Light', thDark:'Dark', thSystem:'System', thAppearance:'Dikhawat', thDevice:'Ye choice sirf isi device par save hoti hai.',
+    thLight:'Light', thDark:'Dark', thSystem:'System', sbLanguage:'Bhasha', thAppearance:'Dikhawat', thDevice:'Ye choice sirf isi device par save hoti hai.',
     thBrand:'Brand colour', thBrandHelp:'Button, highlight aur heading ka accent colour.', thBrandDefault:'Default (navy)',
     sAdIntro:'Apna ad budget daalo taaki dashboard source ke hisaab se per-lead cost dikha sake.',
     sAdStanding:'Roz ka budget (har din chalta hai)', sAdStandingHelp:'Har platform par aap roz aam taur par kitna kharch karte ho. Jin dinon band tha wo neeche import se handle karo.',

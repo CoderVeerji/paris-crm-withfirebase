@@ -1,3 +1,4 @@
+import Select from './Select';
 import ListSelect from './ListSelect';
 import { normalizeState } from '../lib/states';
 import { useEffect, useMemo, useRef, useState } from 'react';
@@ -267,9 +268,9 @@ export default function LeadSheet({ lead: leadIn, onClose, onSaved }) {
 
             <div className="form-group">
               <label>{t('nextStage')} *</label>
-              <select className="form-control" value={stage} onChange={(e) => setStage(e.target.value)}>
+              <Select className="form-control" value={stage} onChange={(e) => setStage(e.target.value)}>
                 {roleStages.map((s) => <option key={s.name} value={s.name}>{s.label}</option>)}
-              </select>
+              </Select>
             </div>
 
             {needsDate && (
@@ -283,10 +284,10 @@ export default function LeadSheet({ lead: leadIn, onClose, onSaved }) {
             {isQualify && (
               <div className="form-group">
                 <label style={{ color: 'var(--navy-accent)' }}>{t('assignSales')}</label>
-                <select className="form-control" value={assignTo} onChange={(e) => setAssignTo(e.target.value)}>
+                <Select className="form-control" value={assignTo} onChange={(e) => setAssignTo(e.target.value)}>
                   <option value="">{t('assignLater')}</option>
                   {salesUsers(cfg).map((u) => <option key={u.id} value={u.id}>{u.full_name}</option>)}
-                </select>
+                </Select>
                 {!assignTo && <p className="field-hint">{t('assignAutoHint')}</p>}
               </div>
             )}
@@ -544,15 +545,15 @@ function ReassignBox({ lead, cfg, t, actor, onDone }) {
         <>
           {err && <div className="alert alert-error">{err}</div>}
           <div className="form-group"><label>{t('reassignLdr')}</label>
-            <select className="form-control" value={ldrUid} onChange={(e) => setLdrUid(e.target.value)}>
+            <Select className="form-control" value={ldrUid} onChange={(e) => setLdrUid(e.target.value)}>
               <option value="">{t('reassignNoChange')}</option>
               {ldrUsers(cfg).map((u) => <option key={u.id} value={u.id}>{u.full_name}</option>)}
-            </select></div>
+            </Select></div>
           <div className="form-group"><label>{t('reassignSales')}</label>
-            <select className="form-control" value={salesUid} onChange={(e) => setSalesUid(e.target.value)}>
+            <Select className="form-control" value={salesUid} onChange={(e) => setSalesUid(e.target.value)}>
               <option value="">{t('reassignNoChange')}</option>
               {salesUsers(cfg).map((u) => <option key={u.id} value={u.id}>{u.full_name}</option>)}
-            </select></div>
+            </Select></div>
           <button type="button" className="btn btn-primary btn-block" disabled={busy || (!ldrUid && !salesUid)} onClick={go}>
             {busy ? t('wait') : t('reassignSave')}
           </button>
@@ -590,10 +591,10 @@ export function DynField({ f, value, onChange }) {
       );
     case 'dropdown':
       return (
-        <select className="form-control" value={value} onChange={(e) => onChange(e.target.value)}>
+        <Select className="form-control" value={value} onChange={(e) => onChange(e.target.value)}>
           <option value="">—</option>
           {opts.map((o) => <option key={o} value={o}>{o}</option>)}
-        </select>
+        </Select>
       );
     case 'multiselect': {
       const sel = new Set(String(value).split(',').map((x) => x.trim()).filter(Boolean));

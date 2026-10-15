@@ -1,3 +1,4 @@
+import Select from '../components/Select';
 import { useEffect, useMemo, useState } from 'react';
 import { collection, getDocs, doc, getDoc } from 'firebase/firestore';
 import { db } from '../firebase';
@@ -259,32 +260,32 @@ function UserSheet({ user, allUsers, actor, t, onClose, onSaved }) {
         <div className="form-group"><label>{t('uPhone')}</label>
           <input className="form-control" value={phone} onChange={(e) => setPhone(e.target.value)} /></div>
         <div className="form-group"><label>{t('uRole')} *</label>
-          <select className="form-control" value={role} onChange={(e) => setRole(e.target.value)}>
+          <Select className="form-control" value={role} onChange={(e) => setRole(e.target.value)}>
             {ROLES.map((r) => <option key={r} value={r}>{r}</option>)}
-          </select></div>
+          </Select></div>
         {role === 'tl' && (
           <div className="form-group"><label>{t('uTeam')} *</label>
-            <select className="form-control" value={team} onChange={(e) => setTeam(e.target.value)}>
+            <Select className="form-control" value={team} onChange={(e) => setTeam(e.target.value)}>
               <option value="">{t('teamBoth')}</option>
               <option value="ldr">{t('mecaLdrTeam')}</option>
               <option value="sales">{t('mecaSalesTeam')}</option>
-            </select>
+            </Select>
             <small style={{ color: 'var(--muted)' }}>{t('uTeamHelp')}</small></div>
         )}
         {!isNew && (
           <div className="form-group"><label>{t('uStatus')}</label>
-            <select className="form-control" value={status} onChange={(e) => setStatus(e.target.value)}>
+            <Select className="form-control" value={status} onChange={(e) => setStatus(e.target.value)}>
               <option value="active">{t('active')}</option>
               <option value="inactive">{t('inactive')}</option>
-            </select>
+            </Select>
             <small style={{ color: 'var(--muted)' }}>{t('uInactiveNote')}</small></div>
         )}
         {!isNew && (role === 'ldr' || role === 'sales') && (
           <div className="form-group"><label>{t('attToggle')}</label>
-            <select className="form-control" value={attendance} onChange={(e) => setAttendance(e.target.value)}>
+            <Select className="form-control" value={attendance} onChange={(e) => setAttendance(e.target.value)}>
               <option value="Present">{t('attIn')}</option>
               <option value="Absent">{t('attOut')}</option>
-            </select></div>
+            </Select></div>
         )}
         <button className="btn btn-primary btn-block" disabled={busy}>{busy ? t('wait') : (isNew ? t('uCreate') : t('save'))}</button>
       </form>
@@ -319,12 +320,12 @@ function UserSheet({ user, allUsers, actor, t, onClose, onSaved }) {
 
           <div className="ls-subhead">{t('uTransferTitle')}</div>
           <div style={{ display: 'flex', gap: 8 }}>
-            <select className="form-control" value={transferTo} onChange={(e) => setTransferTo(e.target.value)}>
+            <Select className="form-control" value={transferTo} onChange={(e) => setTransferTo(e.target.value)}>
               <option value="">— {t('uTransferTo')} —</option>
               {allUsers.filter((u) => u.id !== user.id && u.status === 'active').map((u) => (
                 <option key={u.id} value={u.id}>{u.full_name} ({u.role})</option>
               ))}
-            </select>
+            </Select>
             <button className="btn btn-primary" disabled={busy || !transferTo} onClick={doTransfer}>{t('go')}</button>
           </div>
 

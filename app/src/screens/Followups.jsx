@@ -1,3 +1,4 @@
+import Select from '../components/Select';
 import { useEffect, useMemo, useState } from 'react';
 import { useAuth } from '../auth';
 import { useT, fill } from '../i18n';
@@ -89,9 +90,9 @@ export default function Followups({ kind }) {
             <i className="fas fa-magnifying-glass" />
             <input className="form-control" placeholder={t('search')} value={q} onChange={(e) => { setQ(e.target.value); setPage(0); }} />
           </div>
-          <select className="form-control fu-mode" value={mode} onChange={(e) => setMode(e.target.value)}>
+          <Select className="form-control fu-mode" value={mode} onChange={(e) => setMode(e.target.value)}>
             {MODES.map((m) => <option key={m.k} value={m.k}>{t(m.tk)}</option>)}
-          </select>
+          </Select>
         </div>
       </div>
 

@@ -1,3 +1,4 @@
+import Select from '../components/Select';
 import { useCallback, useMemo, useState } from 'react';
 import { useAuth } from '../auth';
 import { useT } from '../i18n';
@@ -55,10 +56,10 @@ export default function CallHistory() {
         <input className="form-control" type="date" value={to} onChange={(e) => { setTo(e.target.value); setQuick(''); }} />
       </div>
       {actionTypes.length > 1 && (
-        <select className="form-control" style={{ marginBottom: 10 }} value={actionFilter} onChange={(e) => setActionFilter(e.target.value)}>
+        <Select className="form-control" style={{ marginBottom: 10 }} value={actionFilter} onChange={(e) => setActionFilter(e.target.value)}>
           <option value="">{t('audAllTypes')}</option>
           {actionTypes.map((a) => <option key={a} value={a}>{fmtStatus(a.replace(/_/g, ' '))}</option>)}
-        </select>
+        </Select>
       )}
 
       {err && <div className="alert alert-error">{t('loadFail')}</div>}

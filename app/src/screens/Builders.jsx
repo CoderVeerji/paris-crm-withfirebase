@@ -1,3 +1,4 @@
+import Select from '../components/Select';
 import { useEffect, useMemo, useState } from 'react';
 import { doc, getDoc } from 'firebase/firestore';
 import { db } from '../firebase';
@@ -213,9 +214,9 @@ function FormBuilder({ actor, t }) {
             <input className="form-control bld-label" placeholder={t('bLabel')} value={f.label} onChange={(e) => set(i, { label: e.target.value })} />
             <div className="seg-row">
               <span className="seg-label">{t('bType')}</span>
-              <select className="form-control" value={f.type} onChange={(e) => set(i, { type: e.target.value })}>
+              <Select className="form-control" value={f.type} onChange={(e) => set(i, { type: e.target.value })}>
                 {FIELD_TYPES.map((tp) => <option key={tp} value={tp}>{t('bt_' + tp)}</option>)}
-              </select>
+              </Select>
             </div>
             <Seg label={t('bWhoSees')} value={f.role_view} onChange={(v) => set(i, { role_view: v })}
               options={[{ v: 'both', t: t('both') }, { v: 'ldr', t: t('bLdrOnly') }, { v: 'sales', t: t('bSalesOnly') }]} />

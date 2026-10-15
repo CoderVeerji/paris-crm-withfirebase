@@ -1,3 +1,4 @@
+import Select from '../components/Select';
 import { useEffect, useMemo, useState } from 'react';
 import { useConfig } from '../config';
 import { useT, fill } from '../i18n';
@@ -189,17 +190,17 @@ export default function MisReport() {
           <button type="button" className={periodType === 'year' ? 'on' : ''} onClick={() => setPeriodType('year')}>{t('misYear')}</button>
         </div>
         {periodType === 'week' ? (
-          <select className="form-control" value={weekSel} onChange={(e) => setWeekSel(e.target.value)}>
+          <Select className="form-control" value={weekSel} onChange={(e) => setWeekSel(e.target.value)}>
             {weeks.map((w) => <option key={weekId(w)} value={weekId(w)}>{weekLabel(w)}</option>)}
-          </select>
+          </Select>
         ) : periodType === 'year' ? (
-          <select className="form-control" value={yearSel} onChange={(e) => setYearSel(e.target.value)}>
+          <Select className="form-control" value={yearSel} onChange={(e) => setYearSel(e.target.value)}>
             {years.map((y) => <option key={y.id} value={y.id}>{y.label}</option>)}
-          </select>
+          </Select>
         ) : (
-          <select className="form-control" value={monthSel} onChange={(e) => setMonthSel(e.target.value)}>
+          <Select className="form-control" value={monthSel} onChange={(e) => setMonthSel(e.target.value)}>
             {months.map((m) => <option key={m.id} value={m.id}>{m.label}</option>)}
-          </select>
+          </Select>
         )}
         <button type="button" className="chip" disabled={busy} onClick={() => load(true)}>
           <i className="fas fa-rotate" /> {t('lmRefresh')}
