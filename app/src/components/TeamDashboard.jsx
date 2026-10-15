@@ -113,6 +113,7 @@ function RowGroup({ num, icon, iconColor, title, sub, b, teamRole, stages, onCar
                 onClick={() => onCard(`${num}-pending`, title, 'pending')} disabled={capped}>
                 <div className="val" style={{ color: 'var(--warning)' }}>{capped ? '—' : b.pending}</div>
                 <div className="label">{num === 1 ? 'Pending (Untouched)' : num === 5 ? 'Still Working' : num === 2 ? 'Not Worked Yet' : 'Pending'}</div>
+                {!capped && b.clearedLater > 0 && <div className="label" style={{ fontSize: 11, opacity: 0.8 }}>{fill(t('dLateCleared'), { n: b.clearedLater })}</div>}
               </button>
             )}
             {num === 4 && (
@@ -235,7 +236,7 @@ export default function TeamDashboard({ mode, role, uid, team = '', onOpenLead }
     const work = b.leadIds || [];
     const pend = b.pendingIds || [];
     let ids; let bucketSel = sel;
-    if (sel === 'total') { ids = [...work, ...pend]; bucketSel = 'total'; }
+    if (sel === 'total') { ids = [...work, ...pend, ...(b.lateIds || [])]; bucketSel = 'total'; }
     else if (sel === 'pending' || sel === 'never') { ids = pend; bucketSel = 'total'; }
     else if (sel === 'worked' || sel === 'calls') { ids = work; bucketSel = 'total'; }
     else { ids = work; } // cb / ql / ls / exact sales-stage — status filter fetchDashLeadsAll me

@@ -8,7 +8,7 @@
 import { doc, getDoc } from 'firebase/firestore';
 import { db } from '../firebase';
 import { daysBetween, istDay } from './stats';
-import { cacheKey } from './dashboardStats';
+import { cacheKey, laterClearedIds } from './dashboardStats';
 
 // Poora saal (365) bhi ek MIS view load pe sirf 365 reads hai — is admin-only, kabhi-kabhi khulne
 // waali screen ke liye trivial cost hai (daily 50k budget ke saamne kuch bhi nahi), isliye yearly
@@ -21,7 +21,7 @@ function misCacheKey(teamRole, members, from, to) {
   return cacheKey(`mis_${teamRole}_${members.map((m) => m.id).sort().join('.')}_${from}_${to}`);
 }
 
-function mkAcc() { return { hits: {}, wst: {}, work: new Set(), pend: new Set() }; }
+function mkAcc() { return { hits: {}, wst: {}, work: new Set(), pend: new Set(), late: new Set() }; }
 function merge(acc, src) {
   for (const [id, n] of Object.entries(src.hits || {})) {
     acc.hits[id] = (acc.hits[id] || 0) + n; acc.work.add(id);
@@ -31,9 +31,10 @@ function merge(acc, src) {
 }
 function shape(acc) {
   for (const id of acc.work) acc.pend.delete(id); // kisi bhi din worked -> pending nahi
-  const worked = acc.work.size; const pending = acc.pend.size; const total = worked + pending;
+  const worked = acc.work.size; const pending = acc.pend.size; const late = acc.late.size;
+  const total = worked + pending + late; // record wahi — baad mein clear hui leads total mein rehti hain, pending se nikal jaati hain
   return {
-    total, worked, pending,
+    total, worked, pending, clearedLater: late,
     score: total > 0 ? Math.round((worked / total) * 100) : null,
     workedIds: [...acc.work], pendingIds: [...acc.pend],
   };
@@ -92,14 +93,25 @@ async function misReportUncached({ teamRole, members, from, to }) {
     });
   });
 
+  // Poori range beet chuki hai to frozen pending ko live recheck (wahi rule jo dashboard mein) — score/worked
+  // nahi badalta (us din ka record), sirf pending ghatta hai.
+  if (days[days.length - 1] < today) {
+    const everyAcc = Object.values(perUid).flatMap((u) => [u.leads, u.followups]);
+    const allPend = everyAcc.flatMap((a) => [...a.pend]);
+    const cleared = await laterClearedIds(allPend, days[days.length - 1]).catch(() => null);
+    if (cleared) everyAcc.forEach((a) => { for (const id of [...a.pend]) if (!a.work.has(id) && cleared.has(id)) { a.pend.delete(id); a.late.add(id); } });
+  }
+
   const teamLeads = mkAcc(); const teamFu = mkAcc();
   const rows = members.map((m) => {
     const acc = perUid[m.id] || { leads: mkAcc(), followups: mkAcc() };
     // team total ke liye bhi union karo (ek hi lead do logon ke under nahi aati, safe hai)
     acc.leads.work.forEach((id) => teamLeads.work.add(id));
     acc.leads.pend.forEach((id) => teamLeads.pend.add(id));
+    acc.leads.late.forEach((id) => teamLeads.late.add(id));
     acc.followups.work.forEach((id) => teamFu.work.add(id));
     acc.followups.pend.forEach((id) => teamFu.pend.add(id));
+    acc.followups.late.forEach((id) => teamFu.late.add(id));
     const l = shape(acc.leads); const f = shape(acc.followups);
     return { uid: m.id, name: m.full_name || m.id, leads: l, followups: f, overall: overallScore(l, f) };
   }).sort((a, b) => (a.overall ?? 101) - (b.overall ?? 101) || (b.leads.total + b.followups.total) - (a.leads.total + a.followups.total));

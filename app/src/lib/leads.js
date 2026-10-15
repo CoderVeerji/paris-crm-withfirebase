@@ -1,5 +1,6 @@
 // Leads data-access — HAMESHA paginated + role-scoped.
 // Purani galti (poori 14k list ek saath) yahan repeat nahi hogi.
+import { normalizeState } from './states';
 import {
   collection, query, where, orderBy, limit, startAfter, getDocs, getCountFromServer,
   doc, getDoc, setDoc, addDoc, writeBatch, runTransaction, serverTimestamp, Timestamp, increment,
@@ -73,7 +74,7 @@ export async function createLead(d, actor, role) {
     phone: ph.valid ? ph.formatted : '', phone_digits: ph.digits, phone_digits_rev: revDigits(ph.digits),
     phone_raw: ph.valid ? '' : d.phone, phone_invalid: !ph.valid,
     alt_phone: d.alt_phone || '', email: (d.email || '').toLowerCase(),
-    company: d.company || '', company_lower: (d.company || '').toLowerCase(), city: d.city || '', state: d.state || '',
+    company: d.company || '', company_lower: (d.company || '').toLowerCase(), city: d.city || '', state: normalizeState(d.state),
     source: d.source || 'Manual',
     status: isSales ? 'qualified' : stage,
     sales_status: isSales ? 'followup' : '',
@@ -134,7 +135,7 @@ export async function reopenArchivedLead(leadId, d, actor, role) {
     // fresh form data
     name: (d.name || prev.name || '').trim(), name_lower: (d.name || prev.name || '').trim().toLowerCase(),
     company: d.company || prev.company || '', company_lower: (d.company || prev.company || '').toLowerCase(),
-    city: d.city || prev.city || '', state: d.state || prev.state || '',
+    city: d.city || prev.city || '', state: normalizeState(d.state || prev.state),
     source: d.source || prev.source || 'Manual',
     alt_phone: d.alt_phone || prev.alt_phone || '', email: (d.email || prev.email || '').toLowerCase(),
     // fresh pipeline state — LDR ya Sales apna form bharte hain
@@ -596,6 +597,7 @@ export async function updateLeadInfo(lead, patch, actor) {
   const changes = [];
   const clean = { updated_at: serverTimestamp() };
   for (const k of ['name', 'company', 'city', 'state', 'source', 'alt_phone']) {
+    if (k === 'state' && patch.state != null) patch = { ...patch, state: normalizeState(patch.state) };
     if (patch[k] != null && String(patch[k]) !== String(lead[k] || '')) { clean[k] = patch[k]; changes.push({ field: k, from: String(lead[k] || ''), to: String(patch[k]) }); }
   }
   if (patch.email != null && patch.email.toLowerCase() !== (lead.email || '')) {

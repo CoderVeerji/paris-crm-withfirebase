@@ -15,6 +15,7 @@ const TEXT_FIELDS = [
   { key: 'Company_Name', tk: 'sCompany' },
   { key: 'Lead_Sources', tk: 'sSources', area: true },
   { key: 'State_List', tk: 'sStates', area: true },
+  { key: 'State_Aliases', tk: 'sStateAliases', area: true, hintk: 'sStateAliasesHint' },
   { key: 'Whatsapp_Template', tk: 'sWaTpl', area: true, hintk: 'sWaHint' },
   { key: 'Logo_URL', tk: 'sLogo' },
 ];

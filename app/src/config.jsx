@@ -1,4 +1,5 @@
 // App config — stages, dynamic form fields, settings, users list. Ek baar load, sab jagah use.
+import { setStateConfig } from './lib/states';
 import { createContext, useContext, useEffect, useState } from 'react';
 import { doc, getDoc, collection, getDocs } from 'firebase/firestore';
 import { db } from './firebase';
@@ -25,6 +26,8 @@ export function ConfigProvider({ children }) {
           getDocs(collection(db, 'users')),
         ]);
         if (!alive) return;
+        const settingsDoc = setS.data() || {};
+        setStateConfig(settingsDoc.State_List, settingsDoc.State_Aliases); // state normalize (lib/states.js) ke liye
         setCfg({
           stages: (stagesS.data()?.stages || []).filter((s) => s.status !== 'inactive'),
           forms: (formsS.data()?.fields || []).filter((f) => f.status === 'active'),

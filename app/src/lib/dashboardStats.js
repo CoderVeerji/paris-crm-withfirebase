@@ -382,9 +382,35 @@ export async function workSplitStats(args) {
  */
 const DASH_BK = ['fresh', 'reinq', 'sched', 'offsched'];
 
+/** Purane din ke "pending" ka record raat ko freeze hota hai (stats_daily). Par users agle din (ya kabhi bhi)
+ *  aakar wahi lead update kar dete hain — to jo lead range ke BAAD kaam ho gayi, wo ab pending nahi.
+ *  Ye un ids ko live check karta hai (1 read / id, 30-30 ke chunk) aur wo Set lautata hai jo range-end ke baad
+ *  kaam ho chuki hain (last_action_at > range end), archive ho gayi, ya delete. Record (total) wahi rehta hai —
+ *  sirf pending ghatta hai aur "baad mein clear" alag ginti hota hai. Free-tier guard: LIVE_RECHECK_CAP se
+ *  zyada ids ho to skip (null) — card frozen number dikhata hai.  Return null = check nahi hua. */
+export const LIVE_RECHECK_CAP = 600;
+export async function laterClearedIds(ids, endDay) {
+  const list = [...new Set(ids)];
+  if (list.length === 0) return new Set();
+  if (list.length > LIVE_RECHECK_CAP) return null;
+  const endMs = dayEnd(endDay).getTime();
+  const cleared = new Set(); const seen = new Set();
+  const chunks = [];
+  for (let i = 0; i < list.length; i += 30) chunks.push(list.slice(i, i + 30));
+  const snaps = await Promise.all(chunks.map((c) => getDocs(query(collection(db, 'leads'), where(documentId(), 'in', c)))));
+  snaps.forEach((sn) => sn.forEach((d) => {
+    seen.add(d.id);
+    const l = d.data();
+    const la = l.last_action_at?.toMillis ? l.last_action_at.toMillis() : 0;
+    if (l.archived || la > endMs) cleared.add(d.id);
+  }));
+  list.forEach((id) => { if (!seen.has(id)) cleared.add(id); }); // delete/recycle ho chuki
+  return cleared;
+}
+
 export async function getDashRange(args) {
   const { teamRole, memberUid, memberIds, from, to } = args;
-  return cached(`pc_dashrange5_${teamRole}_${memberUid || 't'}_${from}_${to}`, async () => {
+  return cached(`pc_dashrange6_${teamRole}_${memberUid || 't'}_${from}_${to}`, async () => {
     const today = istDay();
     const days = daysBetween(from, to).filter((d) => d <= today);
     const wantToday = days.includes(today);
@@ -437,14 +463,27 @@ export async function getDashRange(args) {
     // range ke kisi bhi din worked hui -> pending nahi
     for (const bk of DASH_BK) for (const id of M[bk].work) M[bk].pend.delete(id);
 
-    const shape = (m) => {
+    // Poori range beet chuki hai -> frozen pending ko live recheck: baad mein clear hui leads pending se hatao
+    const lateIds = { fresh: [], reinq: [], sched: [], offsched: [] };
+    let liveSkipped = false;
+    if (!wantToday && days.length) {
+      const allPend = DASH_BK.flatMap((bk) => [...M[bk].pend]);
+      const cleared = await laterClearedIds(allPend, days[days.length - 1]).catch(() => null);
+      if (cleared === null) liveSkipped = allPend.length > 0;
+      else for (const bk of DASH_BK) for (const id of [...M[bk].pend]) if (cleared.has(id)) { M[bk].pend.delete(id); lateIds[bk].push(id); }
+    }
+
+    const shape = (m, late = []) => {
       const workIds = [...m.work];
       const pendIds = [...m.pend];
       const byStatus = {};
       workIds.forEach((id) => { const st = m.wst[id] || 'other'; byStatus[st] = (byStatus[st] || 0) + 1; });
       return {
-        total: workIds.length + pendIds.length,   // UNIQUE leads
+        total: workIds.length + pendIds.length + late.length,   // UNIQUE leads (record wahi, chahe baad mein clear hui)
         pending: pendIds.length,
+        clearedLater: late.length,                 // range ke baad kaam ho gayi — ab pending nahi
+        lateIds: late,
+        liveSkipped,
         worked: workIds.length,
         contacts: Object.values(m.hits).reduce((a, n) => a + n, 0), // ALL calls (worked leads)
         byStatus,                                  // sum(byStatus) === worked (consistent)
@@ -456,7 +495,7 @@ export async function getDashRange(args) {
         building,
       };
     };
-    return { fresh: shape(M.fresh), reinq: shape(M.reinq), sched: shape(M.sched), offsched: shape(M.offsched) };
+    return { fresh: shape(M.fresh, lateIds.fresh), reinq: shape(M.reinq, lateIds.reinq), sched: shape(M.sched, lateIds.sched), offsched: shape(M.offsched, lateIds.offsched) };
   });
 }
 

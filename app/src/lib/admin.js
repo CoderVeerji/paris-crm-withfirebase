@@ -1,4 +1,5 @@
 // Admin operations — users, config, audit, recycle, bulk. Sab isAdmin rules ke andar.
+import { normalizeState, setStateConfig } from './states';
 import {
   initializeApp, getApps, getApp,
 } from 'firebase/app';
@@ -125,6 +126,7 @@ export async function saveSettings(newObj, oldObj, actor) {
   const changes = diff(oldObj, newObj);
   if (changes.length === 0) return;
   await setDoc(doc(db, 'config', 'settings'), newObj, { merge: true });
+  setStateConfig({ ...oldObj, ...newObj }.State_List, { ...oldObj, ...newObj }.State_Aliases); // naya State_List/aliases is session mein turant lagu
   await audit(actor, 'settings.save', 'Settings', changes);
 }
 
@@ -322,7 +324,7 @@ export async function importLeads(rows, actor, onProgress) {
         created_at: serverTimestamp(), created_by: actor.uid, created_by_name: actor.name || '',
         name: r.name || '', name_lower: (r.name || '').toLowerCase(), phone: r._formatted, phone_digits: r._digits, phone_digits_rev: revDigits(r._digits), phone_raw: r._valid ? '' : r.phone,
         phone_invalid: !r._valid, alt_phone: '', email: (r.email || '').toLowerCase(),
-        company: r.company || '', company_lower: (r.company || '').toLowerCase(), city: r.city || '', state: r.state || '', source: r.source || 'Bulk Import',
+        company: r.company || '', company_lower: (r.company || '').toLowerCase(), city: r.city || '', state: normalizeState(r.state), source: r.source || 'Bulk Import',
         status: 'fresh', sales_status: '',
         ldr_uid: r._ldr_uid || null, sales_uid: null,
         ldr_name: r._ldr_name || '', sales_name: '',
