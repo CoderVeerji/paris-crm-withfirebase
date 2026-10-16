@@ -1369,7 +1369,7 @@ table.mis-t th.mis-th-group { text-align: center; background: color-mix(in srgb,
 .lf-count i { font-size: 11px; }
 
 /* ---------- Select (components/Select.jsx) — searchable dropdown, native select ki jagah ---------- */
-.ss { position: relative; min-width: 0; }
+.ss { display: contents; }
 .ss-btn { display: flex; align-items: center; justify-content: space-between; gap: 8px; text-align: left; cursor: pointer; font: inherit; }
 .ss-btn .ss-val { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .ss-btn.ph .ss-val { color: var(--muted); }

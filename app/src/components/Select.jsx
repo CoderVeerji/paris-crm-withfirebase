@@ -107,7 +107,6 @@ export default function Select({ value, defaultValue, onChange, children, classN
     else if (e.key === 'Enter') { e.preventDefault(); e.stopPropagation(); if (shownFlat[hi]) pick(shownFlat[hi].value); }
   }
 
-  const wrapCls = className.split(/\s+/).filter((c) => c && c !== 'form-control').join(' ');
   const placeholderOpt = flat.find((o) => o.value === '');
   const label = selected ? selected.label : (cur || placeholderOpt?.label || '');
   const isPlaceholder = !selected || selected.value === '';
@@ -139,9 +138,10 @@ export default function Select({ value, defaultValue, onChange, children, classN
     </div>
   );
 
+  // wrapper `display: contents` — button hi layout/spacing ka element hai (native <select> jaisa): className + style seedha button par
   return (
-    <div className={`ss ${wrapCls}`} style={style}>
-      <button type="button" id={id} ref={btn} className={`form-control ss-btn ${isPlaceholder ? 'ph' : ''}`} disabled={disabled}
+    <div className="ss">
+      <button type="button" id={id} ref={btn} className={`form-control ${className.replace(/form-control/, '').trim()} ss-btn ${isPlaceholder ? 'ph' : ''}`} style={style} disabled={disabled}
         aria-haspopup="listbox" aria-expanded={open} aria-label={ariaLabel}
         onClick={() => { setQ(''); setOpen((o) => !o); }}
         onKeyDown={(e) => { if (!open && (e.key === 'ArrowDown' || e.key === 'ArrowUp')) { e.preventDefault(); setQ(''); setOpen(true); } }}>
