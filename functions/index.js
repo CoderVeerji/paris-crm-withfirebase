@@ -87,7 +87,7 @@ const NOTIF_STR = {
       const line = b.length ? `${b.join(' + ')} still pending.` : 'All clear — great work!';
       return `${line} Please connect before end of day 💪`;
     }],
-    morning_mgr: ['📋 Team brief', (o) => `Today: ${o.overdue} follow-ups due across the team, ${o.freshPool} fresh leads unclaimed in the pool. Nudge where needed 👀`],
+    morning_mgr: ['📋 Team brief', (o) => `Today: ${o.sched} follow-ups scheduled (LDR ${o.ldrSched} · Sales ${o.salesSched}), ${o.freshPool} fresh leads unclaimed in the pool. Nudge where needed 👀`],
     test: ['✅ Test notification', () => 'If you can see this, push notifications are working! 🎉'],
   },
   hi: {
@@ -115,7 +115,7 @@ const NOTIF_STR = {
       const line = b.length ? `${b.join(' + ')} अभी पेंडिंग।` : 'सब क्लियर — बढ़िया!';
       return `${line} शाम होने से पहले कनेक्ट कर लो 💪`;
     }],
-    morning_mgr: ['📋 टीम ब्रीफ', (o) => `आज: टीम में ${o.overdue} फॉलोअप ड्यू, पूल में ${o.freshPool} फ्रेश लीड बिना owner। ज़रूरत हो वहाँ नज़र रखें 👀`],
+    morning_mgr: ['📋 टीम ब्रीफ', (o) => `आज: ${o.sched} फॉलोअप शेड्यूल्ड (LDR ${o.ldrSched} · Sales ${o.salesSched}), पूल में ${o.freshPool} फ्रेश लीड बिना owner। ज़रूरत हो वहाँ नज़र रखें 👀`],
     test: ['✅ टेस्ट नोटिफिकेशन', () => 'अगर ये दिख रहा है, तो पुश नोटिफिकेशन काम कर रहे हैं! 🎉'],
   },
   hinglish: {
@@ -143,7 +143,7 @@ const NOTIF_STR = {
       const line = b.length ? `${b.join(' + ')} abhi pending hai.` : 'Sab clear — bahut badhiya!';
       return `${line} Shaam hone se pehle connect kar lo 💪`;
     }],
-    morning_mgr: ['📋 Team brief', (o) => `Aaj: team me ${o.overdue} followup due, pool me ${o.freshPool} fresh lead bina owner. Zaroorat ho wahan nazar rakho 👀`],
+    morning_mgr: ['📋 Team brief', (o) => `Aaj: ${o.sched} followup scheduled (LDR ${o.ldrSched} · Sales ${o.salesSched}), pool me ${o.freshPool} fresh lead bina owner. Zaroorat ho wahan nazar rakho 👀`],
     test: ['✅ Test notification', () => 'Agar ye dikh raha hai, to push notifications kaam kar rahe hain! 🎉'],
   },
 };
@@ -482,12 +482,24 @@ async function aggregateDay(dayStr) {
     snap.forEach((doc) => { relLeads[doc.id] = doc.data(); });
   }
   const allWorkers = usersSnap.docs.filter((u) => ['ldr', 'sales'].includes(u.data().role)).map((u) => u.id);
+  const stillDueByOwner = {};
+  stillDue.forEach((doc) => {
+    const l = doc.data();
+    const ss = String(l.sales_status || '').toLowerCase().trim(); const st = String(l.status || '').toLowerCase().trim();
+    if (l.archived || ['dead', 'lost'].includes(st) || ['lost', 'dead', 'order done', 'order won', 'not interested'].includes(ss)) return; // band lead pending nahi
+    const eff = (ss || st === 'qualified') ? l.sales_uid : l.ldr_uid;
+    if (eff) (stillDueByOwner[eff] = stillDueByOwner[eff] || []).push(doc.id);
+  });
   for (const uid of allWorkers) {
     const tset = touchedByUid[uid] || new Set();
     const dset = dueByUid[uid] || new Set();
     // is uid ke liye relevant leads: usne touch kiye + usne is din ke liye schedule kiye + uski due-today leads
     const cand = new Set([...tset]);
     Object.entries(schedUidByLead).forEach(([lid, us]) => { if (us.has(uid)) cand.add(lid); });
+    // aaj jin leads ki next_followup abhi bhi aaj hai (migrated / bina scheduling-activity wali bhi) — jiska effective owner
+    // ye worker hai (sales_status/qualified => Sales, warna LDR). Pehle ye chhoot jaati thi: dashboard "Scheduled" kam dikhata
+    // tha jabki subah ki notification poori ginti batati thi. [[dash-preagg-dual-copy]] — app/src/lib/dashboardStats.js dashDayLive mein bhi.
+    (stillDueByOwner[uid] || []).forEach((lid) => cand.add(lid));
     for (const lid of cand) {
       const l = relLeads[lid];
       if (!l) continue;
@@ -1295,11 +1307,18 @@ async function maybeMorningBrief(settings, nowMs) {
   // Manager digest — AAJ ke due followup jo abhi tak nahi hue (poora backlog nahi — wo demotivating
   // number banta tha). Detail admin ko 20:00 wale daily email me milta hai.
   try {
-    const overdue = (await db.collection('leads').where('outcome', '==', '')
-      .where('next_followup', '>=', startDay).where('next_followup', '<', TS.fromMillis(nowMs)).count().get()).data().count;
+    // Dashboard ke "Scheduled" jaisa: AAJ ke poore din ke open followups (LDR team + Sales team alag) — pehle sirf "abhi tak due ho chuke"
+    // ginte the (subah 9 baje ~0), isliye admin ko galat/kam number milta tha.
+    const dueSnap = await db.collection('leads').where('next_followup', '>=', startDay).where('next_followup', '<=', endDay).limit(3000).get();
+    let ldrSched = 0; let salesSched = 0;
+    dueSnap.forEach((d) => {
+      const l = d.data(); const ss = norm(l.sales_status); const st = norm(l.status);
+      if (l.archived || ['dead', 'lost'].includes(st) || ['lost', 'dead', 'order done', 'order won', 'not interested'].includes(ss)) return;
+      if (ss || st === 'qualified') salesSched++; else ldrSched++;
+    });
     const adminSnap = await db.collection('users').where('role', '==', 'admin').where('status', '==', 'active').get();
     for (const admin of adminSnap.docs) {
-      await notify(admin.id, 'morning', 'morning_mgr', { overdue, freshPool: freshCount });
+      await notify(admin.id, 'morning', 'morning_mgr', { sched: ldrSched + salesSched, ldrSched, salesSched, freshPool: freshCount });
     }
   } catch (e) { console.error('mgr digest', e.message || e); }
   console.log('morning brief sent to', workers.length);

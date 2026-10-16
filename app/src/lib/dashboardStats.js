@@ -551,6 +551,20 @@ export async function dashDayLive({ teamRole, memberUid, memberIds }, dayStr) {
   });
   const schedSet = new Set();
   bSnap.forEach((d) => { const a = d.data(); if (a.lead_id && okUid(a.uid)) schedSet.add(a.lead_id); });
+  // aaj jin leads ki next_followup aaj hi hai (migrated / bina scheduling-activity wali bhi) — effective owner (sales_status/qualified
+  // => Sales, warna LDR) is worker/team ka ho to candidate. Server aggregateDay ke stillDue seed jaisa. [[dash-preagg-dual-copy]]
+  const dueSeed = {};
+  try {
+    const dSnap = await getDocs(query(collection(db, 'leads'), ...owner, where('next_followup', '>=', rs), where('next_followup', '<=', re), fbLimit(1500)));
+    dSnap.forEach((d) => {
+      const l = { id: d.id, ...d.data() };
+      const ss = String(l.sales_status || '').toLowerCase().trim(); const st = String(l.status || '').toLowerCase().trim();
+      const eff = (ss || st === 'qualified') ? l.sales_uid : l.ldr_uid;
+      if (l.archived || !eff || !okUid(eff) || (isSales ? !(ss || st === 'qualified') : (ss || st === 'qualified'))) return;
+      if (['dead', 'lost'].includes(st) || ['lost', 'dead', 'order done', 'order won', 'not interested'].includes(ss)) return;
+      dueSeed[d.id] = l;
+    });
+  } catch { /* index na ho to purana behaviour */ }
   const capd = aSnap.size >= ALIM || (bSnap.size || 0) >= ALIM;
 
   // (1) FRESH — aaj bani leads
@@ -576,10 +590,11 @@ export async function dashDayLive({ teamRole, memberUid, memberIds }, dayStr) {
   });
 
   // (3+4) SCHEDULED + OFF-SCHEDULE
-  const candIds = [...new Set([...Object.keys(touchCnt), ...schedSet, ...dueSet])];
-  const leadMap = {};
+  const candIds = [...new Set([...Object.keys(touchCnt), ...schedSet, ...dueSet, ...Object.keys(dueSeed)])];
+  const leadMap = { ...dueSeed };
   for (let i = 0; i < candIds.length; i += 30) {
-    const chunk = candIds.slice(i, i + 30);
+    const chunk = candIds.slice(i, i + 30).filter((id) => !leadMap[id]);
+    if (!chunk.length) continue;
     try {
       // eslint-disable-next-line no-await-in-loop
       const qs = await getDocs(query(collection(db, 'leads'), where(documentId(), 'in', chunk)));
