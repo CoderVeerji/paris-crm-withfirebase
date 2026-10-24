@@ -24,6 +24,9 @@ export default function NewLeadSheet({ onClose, onCreated, onOpenExisting }) {
   const actor = { uid: user.id, name: user.full_name };
   const errRef = useRef(null);
   const isAdmin = role === 'admin';
+  // Poori detail (naam/owner) sirf admin/md/tl ya jab lead khud ki ho. Baaki users ko bas "pehle se system mein hai" + stage dikhta hai
+  // (kisi aur ke paas kaun si lead hai ye unhe nahi dikhna chahiye).
+  const canSeeFull = (l) => !!l && (['admin', 'md', 'tl'].includes(role) || l.ldr_uid === user.id || l.sales_uid === user.id);
 
   const [cc, setCc] = useState('91');
   const [f, setF] = useState({
@@ -64,8 +67,8 @@ export default function NewLeadSheet({ onClose, onCreated, onOpenExisting }) {
         setPCheck({
           exists: true, canOpen: !!full,
           existing: full || {
-            id: ix.lead_id, name: ix.name || '', phone: ix.phone || '',
-            sales_name: ix.owner_name || '', status: ix.stage || '', source: ix.source || '',
+            id: ix.lead_id,
+            status: ix.stage || '', // owner/naam/source jaan-boojh kar nahi — dusre user ko ye nahi dikhna chahiye
             sales_uid: null, ldr_uid: null, phone_digits: digits,
           },
         });
@@ -175,17 +178,29 @@ export default function NewLeadSheet({ onClose, onCreated, onOpenExisting }) {
       <Sheet title={t('nlDupTitle')} onClose={onClose}>
         <div className="alert alert-info">{t('nlDupMsg')}</div>
         <div className="lead-card" style={{ marginBottom: 14 }}>
-          <div className="top">
-            <div className="lc-main">
-              <div className="name">{dupe.name || t('noName')}</div>
-              <div className="sub">{dupe.phone || dupe.phone_raw}{dupe.company ? ` · ${dupe.company}` : ''}</div>
+          {canSeeFull(dupe) ? (
+            <>
+              <div className="top">
+                <div className="lc-main">
+                  <div className="name">{dupe.name || t('noName')}</div>
+                  <div className="sub">{dupe.phone || dupe.phone_raw}{dupe.company ? ` · ${dupe.company}` : ''}</div>
+                </div>
+                <span className="status-badge bg-default">{fmtStatus(dupe.sales_status || dupe.status)}</span>
+              </div>
+              <div className="meta">
+                <span><i className="fas fa-user" /> {dupe.sales_name || dupe.ldr_name || '—'}</span>
+                {dupe.source && <span>{t('source')}: <b>{dupe.source}</b></span>}
+              </div>
+            </>
+          ) : (
+            <div className="top">
+              <div className="lc-main">
+                <div className="name">{t('nlInSystem')}</div>
+                <div className="sub">{t('nlStageLbl')}</div>
+              </div>
+              <span className="status-badge bg-default">{fmtStatus(dupe.sales_status || dupe.status) || '—'}</span>
             </div>
-            <span className="status-badge bg-default">{fmtStatus(dupe.sales_status || dupe.status)}</span>
-          </div>
-          <div className="meta">
-            <span><i className="fas fa-user" /> {dupe.sales_name || dupe.ldr_name || dupe.owner_name || '—'}</span>
-            {dupe.source && <span>{t('source')}: <b>{dupe.source}</b></span>}
-          </div>
+          )}
         </div>
         {dupe._canOpen && (
           <button className="btn btn-primary btn-block" onClick={() => { onOpenExisting?.(dupe.id); onClose(); }}>
@@ -231,14 +246,26 @@ export default function NewLeadSheet({ onClose, onCreated, onOpenExisting }) {
           <div className="dup-card">
             <div className="dup-head"><i className="fas fa-triangle-exclamation" /> {t('nlDupTitle')}</div>
             <div className="lead-card" style={{ margin: '10px 0', boxShadow: 'none' }}>
-              <div className="top">
-                <div className="lc-main">
-                  <div className="name">{pCheck.existing.name || t('noName')}</div>
-                  <div className="sub">{pCheck.existing.phone}</div>
+              {canSeeFull(pCheck.existing) ? (
+                <>
+                  <div className="top">
+                    <div className="lc-main">
+                      <div className="name">{pCheck.existing.name || t('noName')}</div>
+                      <div className="sub">{pCheck.existing.phone}</div>
+                    </div>
+                    <span className="status-badge bg-default">{fmtStatus(pCheck.existing.sales_status || pCheck.existing.status)}</span>
+                  </div>
+                  <div className="meta"><span><i className="fas fa-user" /> {pCheck.existing.sales_name || pCheck.existing.ldr_name || t('nlUnassigned')}</span></div>
+                </>
+              ) : (
+                <div className="top">
+                  <div className="lc-main">
+                    <div className="name">{t('nlInSystem')}</div>
+                    <div className="sub">{t('nlStageLbl')}</div>
+                  </div>
+                  <span className="status-badge bg-default">{fmtStatus(pCheck.existing.sales_status || pCheck.existing.status) || '—'}</span>
                 </div>
-                <span className="status-badge bg-default">{fmtStatus(pCheck.existing.sales_status || pCheck.existing.status)}</span>
-              </div>
-              <div className="meta"><span><i className="fas fa-user" /> {pCheck.existing.sales_name || pCheck.existing.ldr_name || t('nlUnassigned')}</span></div>
+              )}
             </div>
 
             {!reassignOpen ? (

@@ -2,7 +2,8 @@ import { useEffect, useMemo, useState } from 'react';
 import { useT } from '../i18n';
 import { useConfig } from '../config';
 import { fmtMoney } from '../lib/format';
-import { mecaFromActivity } from '../lib/dashboardStats';
+import { mecaFromActivity, memberLeadCounts } from '../lib/dashboardStats';
+import Select from '../components/Select';
 import { downloadCsv } from '../lib/csv';
 import { RANGE_PRESETS as QUICK, rangeFor } from '../lib/daterange';
 
@@ -16,6 +17,8 @@ export default function Meca() {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [capped, setCapped] = useState(false);
+  const [person, setPerson] = useState(''); // '' = poori team, warna ek member ka uid
+  const [counts, setCounts] = useState(null); // { uid: { total, pending } }
 
   function pick(k) {
     setQuick(k);
@@ -30,6 +33,19 @@ export default function Meca() {
     }).catch(() => { setData({ rows: [] }); setLoading(false); });
   }, [from, to]);
 
+  // is role ke saare (active) members — person filter ki list + upar ke Total/Pending cards ke liye
+  const members = useMemo(() => (cfg.users || [])
+    .filter((u) => u.role === role && (!u.status || u.status === 'active'))
+    .sort((a, b) => String(a.full_name || '').localeCompare(String(b.full_name || ''))), [cfg.users, role]);
+
+  useEffect(() => { setPerson(''); }, [role]);
+  useEffect(() => {
+    if (!cfg.ready || !members.length) { setCounts({}); return undefined; }
+    let alive = true; setCounts(null);
+    memberLeadCounts(role, members.map((m) => m.id)).then((c) => { if (alive) setCounts(c); }).catch(() => { if (alive) setCounts({}); });
+    return () => { alive = false; };
+  }, [cfg.ready, role, members]);
+
   // activity docs role nahi rakhte — uid se role/naam config se le lete hain
   const roleByUid = useMemo(() => {
     const m = {};
@@ -40,7 +56,7 @@ export default function Meca() {
   const rows = useMemo(() => {
     if (!data) return [];
     return data.rows
-      .filter((r) => roleByUid[r.uid] === role)
+      .filter((r) => roleByUid[r.uid] === role && (!person || r.uid === person))
       .map((r) => ({
         ...r,
         result: role === 'sales' ? r.closed : r.qualified,
@@ -48,7 +64,14 @@ export default function Meca() {
         avgVal: (role === 'sales' && r.closed) ? Math.round(r.revenue / r.closed) : 0,
       }))
       .sort((a, b) => b.result - a.result || b.revenue - a.revenue || b.handled - a.handled);
-  }, [data, role, roleByUid]);
+  }, [data, role, roleByUid, person]);
+
+  // upar ke cards: filter ek person par ho to sirf uske, warna poori team ke
+  const leadTot = useMemo(() => {
+    if (!counts) return null;
+    const ids = person ? [person] : members.map((m) => m.id);
+    return ids.reduce((s, id) => ({ total: s.total + (counts[id]?.total || 0), pending: s.pending + (counts[id]?.pending || 0) }), { total: 0, pending: 0 });
+  }, [counts, person, members]);
 
   const tot = rows.reduce((s, r) => ({
     handled: s.handled + r.handled, touches: s.touches + r.touches,
@@ -60,7 +83,7 @@ export default function Meca() {
   const totAvgTouch = tot.handled ? (tot.touches / tot.handled).toFixed(1) : '0';
 
   function exportCsv() {
-    downloadCsv(`meca-${role}-${from}_${to}.csv`,
+    downloadCsv(`meca-${role}${person ? '-' + (members.find((m) => m.id === person)?.full_name || '').replace(/\s+/g, '_') : ''}-${from}_${to}.csv`,
       ['Name', 'Handled', 'Fresh', 'Old', 'Follow-ups', 'Avg touch', role === 'sales' ? 'Orders' : 'Qualified', 'Conv %', 'Revenue', 'Avg value'],
       rows.map((r) => [r.name, r.handled, r.fresh ?? '', r.old ?? '', r.touches, r.avgTouch, r.result, r.conv.toFixed(1), r.revenue, r.avgVal || '']));
   }
@@ -74,15 +97,29 @@ export default function Meca() {
         <input className="form-control" type="date" value={from} onChange={(e) => { setFrom(e.target.value); setQuick(''); }} />
         <input className="form-control" type="date" value={to} onChange={(e) => { setTo(e.target.value); setQuick(''); }} />
       </div>
-      <div className="ls-tabs" style={{ marginBottom: 14 }}>
+      <div className="ls-tabs" style={{ marginBottom: 10 }}>
         <button className={role === 'sales' ? 'on' : ''} onClick={() => setRole('sales')}>{t('mecaSalesTeam')}</button>
         <button className={role === 'ldr' ? 'on' : ''} onClick={() => setRole('ldr')}>{t('mecaLdrTeam')}</button>
+      </div>
+      <div style={{ marginBottom: 14 }}>
+        <Select className="form-control" value={person} onChange={(e) => setPerson(e.target.value)} aria-label={t('mecaPerson')}>
+          <option value="">{t('mecaAllPeople')}</option>
+          {members.map((m) => <option key={m.id} value={m.id}>{m.full_name}</option>)}
+        </Select>
       </div>
 
       {capped && <div className="alert alert-warn">{t('mecaCapped')}</div>}
 
       {loading ? <div className="skeleton" style={{ height: 240 }} /> : (
         <>
+          <div className="stat-grid">
+            <div className="stat-card" title={t('mecaTotalLeadsTip')}>
+              <div className="val">{leadTot ? leadTot.total.toLocaleString('en-IN') : '…'}</div><div className="label">{t('mecaTotalLeads')}</div>
+            </div>
+            <div className="stat-card tone-wip" title={role === 'sales' ? t('mecaPendingTipSales') : t('mecaPendingTipLdr')}>
+              <div className="val" style={{ color: 'var(--warning)' }}>{leadTot ? leadTot.pending.toLocaleString('en-IN') : '…'}</div><div className="label">{t('mecaPendingLeads')}</div>
+            </div>
+          </div>
           <div className="stat-grid">
             <div className="stat-card"><div className="val">{tot.handled.toLocaleString('en-IN')}</div><div className="label">{t('cHandled')}</div></div>
             <div className="stat-card"><div className="val">{totAvgTouch}x</div><div className="label">{t('mecaAvgTouch')}</div></div>

@@ -21,6 +21,9 @@ export const REPORTS = [
   { key: 'daily_leads', tk: 'rpDailyLeads', kind: 'summary', maxDays: 45 },
   { key: 'reinq_archive', tk: 'rpReinqArchive', kind: 'detail', maxDays: 366, cap: 9500 },
   { key: 'pipeline_now', tk: 'rpPipelineNow', kind: 'snapshot' },
+  // 'tool' = apna alag screen/component (date-range + download wala generic flow nahi) — components/LeadDistReport.jsx, TallyMatch.jsx
+  { key: 'lead_dist', tk: 'rpLeadDist', kind: 'tool' },
+  { key: 'tally_match', tk: 'rpTally', kind: 'tool' },
 ];
 
 export const spanDays = (from, to) => Math.round((Date.parse(`${to}T00:00:00Z`) - Date.parse(`${from}T00:00:00Z`)) / 86400000) + 1;

@@ -3,7 +3,7 @@
 import { normalizeState } from './states';
 import {
   collection, query, where, orderBy, limit, startAfter, getDocs, getCountFromServer,
-  doc, getDoc, setDoc, addDoc, writeBatch, runTransaction, serverTimestamp, Timestamp, increment,
+  doc, getDoc, setDoc, addDoc, writeBatch, runTransaction, serverTimestamp, Timestamp, increment, deleteField,
 } from 'firebase/firestore';
 import { db } from '../firebase';
 import { normalizePhone } from './phone';
@@ -41,10 +41,8 @@ export async function createLead(d, actor, role) {
     return {
       duplicate: true,
       canOpen: !!full,
-      existing: full || {
-        id: ix.lead_id, name: ix.name || '', phone: ix.phone || '',
-        sales_name: ix.owner_name || '', status: ix.stage || '', source: ix.source || '',
-      },
+      // naam/owner/source jaan-boojh kar nahi (privacy) — sirf id + stage; poori detail tabhi jab rules lead padhne dein
+      existing: full || { id: ix.lead_id, status: ix.stage || '' },
     };
   }
 
@@ -103,7 +101,7 @@ export async function createLead(d, actor, role) {
   batch.set(doc(db, 'leads', id), lead);
   batch.set(doc(db, 'phone_index', ph.digits), {
     lead_id: id, name: lead.name, phone: lead.phone || lead.phone_raw,
-    owner_name: lead.sales_name || lead.ldr_name || '', stage: lead.sales_status || lead.status,
+    stage: lead.sales_status || lead.status,
     source: lead.source, updated_at: serverTimestamp(),
   });
   batch.set(doc(collection(db, 'activity')), {
@@ -170,7 +168,7 @@ export async function reopenArchivedLead(leadId, d, actor, role) {
   if (prev.phone_digits) {
     batch.set(doc(db, 'phone_index', prev.phone_digits), {
       lead_id: leadId, name: upd.name, phone: prev.phone || prev.phone_raw || '',
-      owner_name: upd.sales_name || upd.ldr_name || '', stage: upd.sales_status || upd.status,
+      owner_name: deleteField(), stage: upd.sales_status || upd.status,
       source: upd.source, updated_at: now,
     }, { merge: true });
   }
@@ -627,7 +625,7 @@ export async function updateLeadInfo(lead, patch, actor) {
   if (newDigits) {
     batch.set(doc(db, 'phone_index', newDigits), {
       lead_id: lead.id, name: clean.name ?? lead.name ?? '', phone: clean.phone,
-      owner_name: lead.sales_name || lead.ldr_name || '', stage: lead.sales_status || lead.status || '',
+      stage: lead.sales_status || lead.status || '',
       source: clean.source ?? lead.source ?? '', updated_at: serverTimestamp(),
     });
     if (lead.phone_digits) batch.delete(doc(db, 'phone_index', lead.phone_digits));

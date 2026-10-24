@@ -1,6 +1,6 @@
 // Lead pe action — activity likho + lead update karo + (order ho to) order likho. Ek transaction jaisा flow.
 import {
-  doc, collection, serverTimestamp, writeBatch, increment, Timestamp,
+  doc, collection, serverTimestamp, writeBatch, increment, Timestamp, deleteField,
 } from 'firebase/firestore';
 import { db } from '../firebase';
 import { computeScore } from './scoring';
@@ -184,7 +184,7 @@ export async function logLeadAction(p) {
   if (lead.phone_digits && (isSales ? upd.sales_status : upd.status)) {
     batch.set(doc(db, 'phone_index', lead.phone_digits), {
       stage: upd.sales_status || upd.status || '',
-      owner_name: upd.sales_name || lead.sales_name || upd.ldr_name || lead.ldr_name || '',
+      owner_name: deleteField(), // privacy: kisi aur ko "ye kiske paas hai" nahi dikhna chahiye
     }, { merge: true });
   }
   await batch.commit();
@@ -259,7 +259,7 @@ export async function markUrgent(lead, actor, remark, newAssignee) {
   if (lead.phone_digits) {
     batch.set(doc(db, 'phone_index', lead.phone_digits), {
       stage: upd.sales_status || upd.status || lead.sales_status || lead.status || '',
-      owner_name: upd.sales_name || upd.ldr_name || lead.sales_name || lead.ldr_name || '',
+      owner_name: deleteField(), // privacy: kisi aur ko "ye kiske paas hai" nahi dikhna chahiye
     }, { merge: true });
   }
   batch.set(doc(collection(db, 'activity')), {
@@ -334,7 +334,7 @@ export async function reassignLead(lead, actor, assignee) {
   });
   if (lead.phone_digits) {
     batch.set(doc(db, 'phone_index', lead.phone_digits), {
-      owner_name: upd.sales_name || upd.ldr_name || lead.sales_name || lead.ldr_name || '',
+      owner_name: deleteField(), // privacy: kisi aur ko "ye kiske paas hai" nahi dikhna chahiye
     }, { merge: true });
   }
   await batch.commit();

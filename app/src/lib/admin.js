@@ -6,7 +6,7 @@ import {
 import { getAuth, connectAuthEmulator, createUserWithEmailAndPassword, signOut, sendPasswordResetEmail } from 'firebase/auth';
 import {
   doc, collection, getDoc, getDocs, setDoc, updateDoc, deleteDoc, documentId,
-  query, where, writeBatch, serverTimestamp, addDoc, orderBy, limit, startAfter, increment,
+  query, where, writeBatch, serverTimestamp, addDoc, orderBy, limit, startAfter, increment, deleteField,
 } from 'firebase/firestore';
 import { db, auth, EMU } from '../firebase';
 import { computeScore } from './scoring';
@@ -219,7 +219,7 @@ export async function restoreLead(recycleId, actor) {
   if (rest.phone_digits) {
     b.set(doc(db, 'phone_index', rest.phone_digits), {
       lead_id: id, name: rest.name || '', phone: rest.phone || rest.phone_raw || '',
-      owner_name: rest.sales_name || rest.ldr_name || '', stage: rest.sales_status || rest.status || '',
+      stage: rest.sales_status || rest.status || '',
       source: rest.source || '', updated_at: serverTimestamp(),
     });
   }
@@ -421,7 +421,7 @@ export async function mergeLead(canonical, duplicate, actor) {
   if (canonical.phone_digits) {
     batch.set(doc(db, 'phone_index', canonical.phone_digits), {
       lead_id: canonical.id, name: canonical.name || '', phone: canonical.phone || canonical.phone_raw || '',
-      owner_name: canonical.sales_name || canonical.ldr_name || '', stage: canonical.sales_status || canonical.status || '',
+      owner_name: deleteField(), stage: canonical.sales_status || canonical.status || '',
     }, { merge: true });
   }
   batch.set(doc(collection(db, 'activity')), {

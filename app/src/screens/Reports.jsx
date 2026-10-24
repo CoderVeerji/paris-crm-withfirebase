@@ -7,11 +7,14 @@ import { downloadCsv, downloadXlsx } from '../lib/csv';
 import { istDay } from '../lib/stats';
 import { REPORTS, buildReport, spanDays } from '../lib/reports';
 import { buildDailyLeadsReportHtml } from '../lib/dailyLeadsReport';
+import LeadDistReport from '../components/LeadDistReport';
+import TallyMatch from '../components/TallyMatch';
 
 const ICON = {
   leads_created: 'fa-users', leads_worked: 'fa-comments', leads_qualified: 'fa-user-check',
   activity: 'fa-clipboard-list', orders: 'fa-sack-dollar', team_perf: 'fa-ranking-star',
   daily_leads: 'fa-table-list', reinq_archive: 'fa-arrow-rotate-left', pipeline_now: 'fa-diagram-project',
+  lead_dist: 'fa-people-arrows', tally_match: 'fa-scale-balanced',
 };
 const addDays = (day, n) => { const d = new Date(`${day}T12:00:00Z`); d.setUTCDate(d.getUTCDate() + n); return d.toISOString().slice(0, 10); };
 
@@ -26,6 +29,7 @@ export default function Reports() {
 
   const def = REPORTS.find((r) => r.key === key);
   const isSnapshot = def.kind === 'snapshot';
+  const isTool = def.kind === 'tool';
   const span = spanDays(from, to);
   const overLimit = !isSnapshot && def.maxDays && span > def.maxDays;
   const badRange = !isSnapshot && from > to;
@@ -94,7 +98,10 @@ export default function Reports() {
         ))}
       </div>
 
-      {!isSnapshot ? (
+      {key === 'lead_dist' && <LeadDistReport />}
+      {key === 'tally_match' && <TallyMatch />}
+
+      {isTool ? null : !isSnapshot ? (
         <div className="rp-range">
           <div className="rp-chips">
             {quick.map((q) => (
@@ -117,17 +124,20 @@ export default function Reports() {
         <p className="rp-note"><i className="fas fa-circle-info" /> {t('rpSnapshotNote')}</p>
       )}
 
-      {key === 'daily_leads' && (
+      {!isTool && key === 'daily_leads' && (
         <button className="btn btn-block" style={{ marginBottom: 8, background: 'var(--ink, #16202b)', color: '#fff' }}
           disabled={busy || overLimit || badRange} onClick={openReport}>
           <i className="fas fa-chart-column" /> {busy ? t('rpBuilding') : t('rpOpenReport')}
         </button>
       )}
-      <button className="btn btn-primary btn-block" disabled={busy || overLimit || badRange} onClick={download}>
-        <i className="fas fa-file-arrow-down" /> {busy ? t('rpBuilding') : t('rpDownload')}
-      </button>
-
-      <p className="rp-limit">{t('rpLimitNote')}</p>
+      {!isTool && (
+        <>
+          <button className="btn btn-primary btn-block" disabled={busy || overLimit || badRange} onClick={download}>
+            <i className="fas fa-file-arrow-down" /> {busy ? t('rpBuilding') : t('rpDownload')}
+          </button>
+          <p className="rp-limit">{t('rpLimitNote')}</p>
+        </>
+      )}
     </div>
   );
 }

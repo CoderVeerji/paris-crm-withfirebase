@@ -382,6 +382,27 @@ export async function workSplitStats(args) {
  */
 const DASH_BK = ['fresh', 'reinq', 'sched', 'offsched'];
 
+/** MECA ke upar ke cards: har member ki ABHI ki "total leads" (uske naam par, archived nahi) aur "pending leads"
+ *  (pehli kaarwai ka intezaar: LDR = fresh/new, Sales = sales_open i.e. Sales ne abhi chhua nahi).
+ *  Sirf count() queries (member x 2, har ek ~1 read) + 45-min cache. Return { [uid]: { total, pending } }. */
+export function memberLeadCounts(teamRole, uids) {
+  const isSales = teamRole === 'sales';
+  const ownerField = isSales ? 'sales_uid' : 'ldr_uid';
+  const key = `mecacnt_${teamRole}_${[...uids].sort().join('.')}`;
+  return cached(key, async () => {
+    const out = {};
+    await Promise.all(uids.map(async (uid) => {
+      const base = [where(ownerField, '==', uid), where('archived', '==', false)];
+      const [total, pending] = await Promise.all([
+        cnt(...base),
+        isSales ? cnt(...base, where('sales_open', '==', true)) : cnt(...base, where('status', 'in', ['fresh', 'new'])),
+      ]).catch(() => [0, 0]);
+      out[uid] = { total, pending };
+    }));
+    return out;
+  });
+}
+
 /** Purane din ke "pending" ka record raat ko freeze hota hai (stats_daily). Par users agle din (ya kabhi bhi)
  *  aakar wahi lead update kar dete hain — to jo lead range ke BAAD kaam ho gayi, wo ab pending nahi.
  *  Ye un ids ko live check karta hai (1 read / id, 30-30 ke chunk) aur wo Set lautata hai jo range-end ke baad
