@@ -70,7 +70,7 @@ export default function LeadDistReport() {
           {data.capped && <div className="alert alert-warn" style={{ marginTop: 10 }}>{t('rpTooManyLeads')}</div>}
           <div className="stat-grid" style={{ marginTop: 14 }}>
             <div className="stat-card"><div className="val">{tot.received.toLocaleString('en-IN')}</div><div className="label">{t('ldReceived')}</div></div>
-            <div className="stat-card tone-wip"><div className="val" style={{ color: 'var(--warning)' }}>{tot.pending.toLocaleString('en-IN')}</div><div className="label">{t('ldPending')}</div></div>
+            <div className="stat-card tone-lost"><div className="val" style={{ color: tot.pending > 0 ? 'var(--danger)' : 'var(--success)' }}>{tot.pending.toLocaleString('en-IN')}</div><div className="label">{t('ldPending')}</div></div>
             <div className="stat-card tone-good"><div className="val" style={{ color: 'var(--success)' }}>{tot.worked.toLocaleString('en-IN')}</div><div className="label">{t('ldWorked')}</div></div>
           </div>
 
@@ -79,7 +79,7 @@ export default function LeadDistReport() {
               <table className="meca-t">
                 <thead><tr><th>{t('ldPerson')}</th><th>{t('ldReceived')}</th><th>{t('ldPending')}</th><th>{t('ldWorked')}</th><th>{t('ldPendingPct')}</th></tr></thead>
                 <tbody>{byPerson.map((p) => (
-                  <tr key={p.name}><td className="nm">{p.name}</td><td>{p.received}</td><td className="hl">{p.pending}</td><td>{p.worked}</td><td>{pct(p.pending, p.received)}</td></tr>
+                  <tr key={p.name} className={p.pending > 0 ? 'ld-bad' : ''}><td className="nm">{p.name}</td><td>{p.received}</td><td><span className={p.pending > 0 ? 'ld-pend' : 'ld-ok'}>{p.pending}</span></td><td>{p.worked}</td><td className={p.pending > 0 ? 'ld-pct' : ''}>{pct(p.pending, p.received)}</td></tr>
                 ))}</tbody>
               </table>
             </div>
@@ -97,7 +97,7 @@ export default function LeadDistReport() {
               <thead><tr><th>{t('ldDate')}</th><th>{t('ldPerson')}</th><th>{t('ldReceived')}</th><th>{t('ldPending')}</th><th>{t('ldWorked')}</th></tr></thead>
               <tbody>
                 {rows.map((r) => (
-                  <tr key={`${r.day}|${r.uid}`}><td>{r.day}</td><td className="nm">{r.name}</td><td>{r.received}</td><td className="hl">{r.pending}</td><td>{r.worked}</td></tr>
+                  <tr key={`${r.day}|${r.uid}`} className={r.pending > 0 ? 'ld-bad' : ''}><td>{r.day}</td><td className="nm">{r.name}</td><td>{r.received}</td><td><span className={r.pending > 0 ? 'ld-pend' : 'ld-ok'}>{r.pending}</span></td><td>{r.worked}</td></tr>
                 ))}
                 {!rows.length && <tr><td colSpan={5} style={{ textAlign: 'center', color: 'var(--muted)' }}>{t('noData')}</td></tr>}
               </tbody>

@@ -1,8 +1,8 @@
 import { useEffect, useMemo, useState } from 'react';
-import { useT } from '../i18n';
+import { useT, fill } from '../i18n';
 import { useConfig } from '../config';
 import { fmtMoney } from '../lib/format';
-import { mecaFromActivity, memberLeadCounts } from '../lib/dashboardStats';
+import { mecaFromActivity, memberLeadCounts, memberLeadsInRange } from '../lib/dashboardStats';
 import Select from '../components/Select';
 import { downloadCsv } from '../lib/csv';
 import { RANGE_PRESETS as QUICK, rangeFor } from '../lib/daterange';
@@ -18,7 +18,8 @@ export default function Meca() {
   const [loading, setLoading] = useState(true);
   const [capped, setCapped] = useState(false);
   const [person, setPerson] = useState(''); // '' = poori team, warna ek member ka uid
-  const [counts, setCounts] = useState(null); // { uid: { total, pending } }
+  const [counts, setCounts] = useState(null); // ABHI tak (all-time) { uid: { total, pending } }
+  const [rangeCnt, setRangeCnt] = useState(null); // is date-range ke { uid: { total, pending } }
 
   function pick(k) {
     setQuick(k);
@@ -46,6 +47,13 @@ export default function Meca() {
     return () => { alive = false; };
   }, [cfg.ready, role, members]);
 
+  useEffect(() => {
+    if (!cfg.ready) return undefined;
+    let alive = true; setRangeCnt(null);
+    memberLeadsInRange(role, from, to).then((c) => { if (alive) setRangeCnt(c); }).catch(() => { if (alive) setRangeCnt({}); });
+    return () => { alive = false; };
+  }, [cfg.ready, role, from, to]);
+
   // activity docs role nahi rakhte — uid se role/naam config se le lete hain
   const roleByUid = useMemo(() => {
     const m = {};
@@ -67,11 +75,13 @@ export default function Meca() {
   }, [data, role, roleByUid, person]);
 
   // upar ke cards: filter ek person par ho to sirf uske, warna poori team ke
-  const leadTot = useMemo(() => {
-    if (!counts) return null;
+  const sumFor = (src) => {
+    if (!src) return null;
     const ids = person ? [person] : members.map((m) => m.id);
-    return ids.reduce((s, id) => ({ total: s.total + (counts[id]?.total || 0), pending: s.pending + (counts[id]?.pending || 0) }), { total: 0, pending: 0 });
-  }, [counts, person, members]);
+    return ids.reduce((s, id) => ({ total: s.total + (src[id]?.total || 0), pending: s.pending + (src[id]?.pending || 0) }), { total: 0, pending: 0 });
+  };
+  const leadTot = useMemo(() => sumFor(rangeCnt), [rangeCnt, person, members]); // eslint-disable-line react-hooks/exhaustive-deps
+  const allTime = useMemo(() => sumFor(counts), [counts, person, members]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const tot = rows.reduce((s, r) => ({
     handled: s.handled + r.handled, touches: s.touches + r.touches,
@@ -115,9 +125,11 @@ export default function Meca() {
           <div className="stat-grid">
             <div className="stat-card" title={t('mecaTotalLeadsTip')}>
               <div className="val">{leadTot ? leadTot.total.toLocaleString('en-IN') : '…'}</div><div className="label">{t('mecaTotalLeads')}</div>
+              {allTime && <div className="label" style={{ fontSize: 10.5, opacity: 0.75, textTransform: 'none' }}>{fill(t('mecaAllTime'), { n: allTime.total.toLocaleString('en-IN') })}</div>}
             </div>
-            <div className="stat-card tone-wip" title={role === 'sales' ? t('mecaPendingTipSales') : t('mecaPendingTipLdr')}>
-              <div className="val" style={{ color: 'var(--warning)' }}>{leadTot ? leadTot.pending.toLocaleString('en-IN') : '…'}</div><div className="label">{t('mecaPendingLeads')}</div>
+            <div className="stat-card tone-lost" title={role === 'sales' ? t('mecaPendingTipSales') : t('mecaPendingTipLdr')}>
+              <div className="val" style={{ color: leadTot && leadTot.pending > 0 ? 'var(--danger)' : 'var(--success)' }}>{leadTot ? leadTot.pending.toLocaleString('en-IN') : '…'}</div><div className="label">{t('mecaPendingLeads')}</div>
+              {allTime && <div className="label" style={{ fontSize: 10.5, opacity: 0.75, textTransform: 'none' }}>{fill(t('mecaAllTime'), { n: allTime.pending.toLocaleString('en-IN') })}</div>}
             </div>
           </div>
           <div className="stat-grid">

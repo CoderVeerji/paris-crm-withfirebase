@@ -382,6 +382,32 @@ export async function workSplitStats(args) {
  */
 const DASH_BK = ['fresh', 'reinq', 'sched', 'offsched'];
 
+/** MECA ke cards (date-range): is range mein har member ko kitni leads MILI aur unme se abhi kitni pending.
+ *  Sales: leads.assigned_sales_at range mein (jis din Sales ko di gayi). LDR: leads.created_at range mein (jis din bani, owner = ldr_uid).
+ *  Pending: Sales = abhi bhi sales_open (chhui nahi); LDR = status fresh/new. Archived nahi ginte. Bounded (cap) + 45-min cache — naya index nahi.
+ *  Return { [uid]: { total, pending }, __capped }. */
+export function memberLeadsInRange(teamRole, from, to) {
+  const isSales = teamRole === 'sales';
+  const tsField = isSales ? 'assigned_sales_at' : 'created_at';
+  const ownerField = isSales ? 'sales_uid' : 'ldr_uid';
+  const CAP = 5000;
+  return cached(`mecarng_${teamRole}_${from}_${to}`, async () => {
+    const snap = await getDocs(query(collection(db, 'leads'),
+      where(tsField, '>=', dayStart(from)), where(tsField, '<=', dayEnd(to)), orderBy(tsField, 'asc'), fbLimit(CAP + 1)));
+    const out = { __capped: snap.size > CAP };
+    snap.docs.slice(0, CAP).forEach((d) => {
+      const l = d.data(); const uid = l[ownerField];
+      if (!uid || l.archived) return;
+      const o = (out[uid] = out[uid] || { total: 0, pending: 0 });
+      o.total += 1;
+      const st = String(l.status || '').toLowerCase();
+      const pend = isSales ? (st === 'qualified' && ['', 'qualified', 'fresh', 'new'].includes(String(l.sales_status || '').toLowerCase())) : ['fresh', 'new'].includes(st);
+      if (pend) o.pending += 1;
+    });
+    return out;
+  });
+}
+
 /** MECA ke upar ke cards: har member ki ABHI ki "total leads" (uske naam par, archived nahi) aur "pending leads"
  *  (pehli kaarwai ka intezaar: LDR = fresh/new, Sales = sales_open i.e. Sales ne abhi chhua nahi).
  *  Sirf count() queries (member x 2, har ek ~1 read) + 45-min cache. Return { [uid]: { total, pending } }. */

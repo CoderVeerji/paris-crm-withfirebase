@@ -273,9 +273,11 @@ export default function NewLeadSheet({ onClose, onCreated, onOpenExisting }) {
                 <button type="button" className="btn btn-danger btn-block" disabled={resolveBusy} onClick={sendBackToOwner}>
                   <i className="fas fa-rotate-left" /> {resolveBusy ? t('wait') : pCheck.existing.archived ? t('nlReopenArchived') : t('nlSendBack')}
                 </button>
-                <button type="button" className="btn btn-ghost btn-block" style={{ marginTop: 8 }} onClick={() => setReassignOpen(true)}>
-                  <i className="fas fa-user-check" /> {t('nlReassignBtn')}
-                </button>
+                {['admin', 'md', 'tl'].includes(role) && (
+                  <button type="button" className="btn btn-ghost btn-block" style={{ marginTop: 8 }} onClick={() => setReassignOpen(true)}>
+                    <i className="fas fa-user-check" /> {t('nlReassignBtn')}
+                  </button>
+                )}
                 {pCheck.canOpen && (
                   <button type="button" className="btn btn-ghost btn-block" style={{ marginTop: 8 }}
                     onClick={() => { onOpenExisting?.(pCheck.existing.id); onClose(); }}>

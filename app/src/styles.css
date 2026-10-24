@@ -1370,6 +1370,11 @@ table.mis-t th.mis-th-group { text-align: center; background: color-mix(in srgb,
 
 /* ---------- Select (components/Select.jsx) — searchable dropdown, native select ki jagah ---------- */
 .ss { display: contents; }
+/* Lead distribution: pending wali rows laal — turant nazar aaye */
+.ld-bad td { background: color-mix(in srgb, var(--danger) 9%, var(--card)); }
+.ld-pend { display: inline-block; min-width: 26px; padding: 2px 9px; border-radius: 999px; background: var(--danger); color: #fff; font-weight: 800; text-align: center; }
+.ld-ok { color: var(--success); font-weight: 700; }
+.ld-pct { color: var(--danger); font-weight: 800; }
 .ss-btn { display: flex; align-items: center; justify-content: space-between; gap: 8px; text-align: left; cursor: pointer; font: inherit; }
 .ss-btn .ss-val { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .ss-btn.ph .ss-val { color: var(--muted); }
