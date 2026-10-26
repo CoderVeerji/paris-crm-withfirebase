@@ -96,6 +96,8 @@ async function misReportUncached({ teamRole, members, from, to }) {
         const src = dd[bk] || {};
         for (const id of Object.keys(src.hits || {})) U(m.id).any.set(id, (src.wst && src.wst[id]) || U(m.id).any.get(id) || 'other');
       }
+      // Off-Schedule ke pids = us din touch hui par abhi khuli leads — ye bhi "kaam hua" ka saboot
+      for (const id of ((dd.offsched || {}).pids || [])) if (!U(m.id).any.has(id)) U(m.id).any.set(id, 'other');
     });
   });
 

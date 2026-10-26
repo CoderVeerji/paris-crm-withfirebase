@@ -441,7 +441,7 @@ export function memberLeadCounts(teamRole, uids) {
  *  hone ke baad) koi bhi kaam hua (last_action_at >= sinceMs) wo ab pending nahi. Yahi dashboard ka "live pending" hai. */
 export const LIVE_RECHECK_CAP = 600;
 export async function laterClearedIds(ids, endDay, opts = {}) {
-  const { teamRole = '', afterEnd = true, sinceMs = null, info = null } = opts;
+  const { teamRole = '', afterEnd = true, sinceMs = null, info = null, stages = null } = opts;
   const list = [...new Set(ids)];
   if (list.length === 0) return new Set();
   if (list.length > LIVE_RECHECK_CAP) return null;
@@ -455,6 +455,7 @@ export async function laterClearedIds(ids, endDay, opts = {}) {
     const l = d.data();
     const la = l.last_action_at?.toMillis ? l.last_action_at.toMillis() : 0;
     const notSales = teamRole === 'sales' && String(l.status || '').toLowerCase() !== 'qualified';
+    if (stages) stages[d.id] = String((teamRole === 'sales' ? l.sales_status : l.status) || '').toLowerCase().trim() || 'other';
     const workedSince = sinceMs != null && la >= sinceMs;
     if (l.archived || notSales || (afterEnd && la > endMs) || workedSince) {
       cleared.add(d.id);
@@ -525,16 +526,12 @@ export async function getDashRange(args) {
     // CROSS-BUCKET: lead jis din assign/schedule hui us din pending thi (Fresh/Scheduled bucket), par agle din (kisi aur bucket mein —
     // Off-Schedule / Scheduled) us par kaam ho gaya — wo bhi pending nahi. Pehle sirf SAME bucket ka kaam ginte the, isliye
     // "shaam ko assign, agli subah kaam" wali leads Fresh pending mein atki rehti thi (dashboard pending MECA se bahut zyada).
-    // Off-Schedule ka "still working" yahan nahi chhedte (wo pending nahi, chalta hua kaam hai).
+    // Off-Schedule ka "still working" bucket khud nahi chhedte (wo chalta hua kaam hai) — par uski leads us din TOUCH hui thi, isliye
+    // wo "kaam hua" ka saboot hain: server touch hui + abhi khuli lead ko offsched.pids mein rakhta hai (hits mein nahi) — pehle ye chhoot jaata tha.
     const anyWst = {};
-    for (const bk of DASH_BK) for (const id of M[bk].work) anyWst[id] = M[bk].wst[id] || anyWst[id] || 'other';
-    for (const bk of ['fresh', 'reinq', 'sched']) {
-      for (const id of [...M[bk].pend]) {
-        if (!(id in anyWst)) continue;
-        M[bk].pend.delete(id); M[bk].work.add(id);
-        M[bk].hits[id] = Math.max(1, M[bk].hits[id] || 0); M[bk].wst[id] = anyWst[id];
-      }
-    }
+    for (const bk of DASH_BK) for (const id of M[bk].work) anyWst[id] = M[bk].wst[id] || anyWst[id] || '';
+    M.offsched.pend.forEach((id) => { if (!(id in anyWst)) anyWst[id] = ''; });
+    const stages = {};
 
     // Poori range beet chuki hai -> frozen pending ko live recheck: baad mein clear hui leads pending se hatao
     const lateIds = { fresh: [], reinq: [], sched: [], offsched: [] };
@@ -542,7 +539,7 @@ export async function getDashRange(args) {
     if (days.length) {
       const allPend = DASH_BK.flatMap((bk) => [...M[bk].pend]);
       const info = {};
-      const cleared = await laterClearedIds(allPend, days[days.length - 1], { teamRole, afterEnd: !wantToday, sinceMs: wantToday ? dayStart(days[0]).getTime() : null, info }).catch(() => null);
+      const cleared = await laterClearedIds(allPend, days[days.length - 1], { teamRole, afterEnd: !wantToday, sinceMs: wantToday ? dayStart(days[0]).getTime() : null, info, stages }).catch(() => null);
       if (cleared === null) liveSkipped = allPend.length > 0;
       else {
         for (const bk of DASH_BK) {
@@ -553,6 +550,15 @@ export async function getDashRange(args) {
             if (info[id]?.worked) { M[bk].work.add(id); M[bk].hits[id] = Math.max(1, M[bk].hits[id] || 0); M[bk].wst[id] = info[id].stage; } else lateIds[bk].push(id);
           }
         }
+      }
+    }
+
+    // CROSS-BUCKET promotion: kisi bhi bucket/din mein kaam ka saboot mila => Fresh / Re-Inquiry / Scheduled mein pending nahi, Worked.
+    for (const bk of ['fresh', 'reinq', 'sched']) {
+      for (const id of [...M[bk].pend]) {
+        if (!(id in anyWst)) continue;
+        M[bk].pend.delete(id); M[bk].work.add(id);
+        M[bk].hits[id] = Math.max(1, M[bk].hits[id] || 0); M[bk].wst[id] = anyWst[id] || stages[id] || 'other';
       }
     }
 
