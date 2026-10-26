@@ -9,7 +9,7 @@ import { doc, getDoc } from 'firebase/firestore';
 import { db } from '../firebase';
 import { daysBetween, istDay } from './stats';
 import { dayStart } from './daterange';
-import { cacheKey, laterClearedIds } from './dashboardStats';
+import { cacheKey, laterClearedIds, fetchLiveFresh } from './dashboardStats';
 
 // Poora saal (365) bhi ek MIS view load pe sirf 365 reads hai — is admin-only, kabhi-kabhi khulne
 // waali screen ke liye trivial cost hai (daily 50k budget ke saamne kuch bhi nahi), isliye yearly
@@ -123,6 +123,18 @@ async function misReportUncached({ teamRole, members, from, to }) {
     if (days[days.length - 1] >= today) everyAcc.forEach((a) => a.pendDay.forEach((d, id) => { const ms = dayStart(d).getTime(); if (!sinceMap[id] || ms > sinceMap[id]) sinceMap[id] = ms; }));
     const cleared = await laterClearedIds(allPend, days[days.length - 1], { teamRole, afterEnd: days[days.length - 1] < today, sinceMap: days[days.length - 1] >= today ? sinceMap : null }).catch(() => null);
     if (cleared) everyAcc.forEach((a) => { for (const id of [...a.pend]) if (!a.work.has(id) && cleared.has(id)) { a.pend.delete(id); a.late.add(id); } });
+  }
+
+  // "Leads mili" = LIVE (abhi ki lead se, dashboard ke Fresh jaisa): range mein mili leads, unme se abhi bhi untouched = pending
+  const lf = days.length <= 62 ? await fetchLiveFresh(teamRole, days[0], days[days.length - 1]).catch(() => null) : null;
+  if (lf) {
+    const byUid = {}; lf.forEach((r) => { (byUid[r.uid] = byUid[r.uid] || []).push(r); });
+    members.forEach((m) => {
+      const acc = U(m.id).leads; const rows = byUid[m.id] || [];
+      acc.work = new Set(rows.filter((r) => !r.pending).map((r) => r.id));
+      acc.pend = new Set(rows.filter((r) => r.pending).map((r) => r.id));
+      acc.late = new Set();
+    });
   }
 
   const teamLeads = mkAcc(); const teamFu = mkAcc();

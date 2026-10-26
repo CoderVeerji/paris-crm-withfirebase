@@ -382,6 +382,31 @@ export async function workSplitStats(args) {
  */
 const DASH_BK = ['fresh', 'reinq', 'sched', 'offsched'];
 
+/** "Fresh Leads" section ki LIVE ginti — abhi ki lead ki sthiti se (MECA jaisi), purane daily-snapshot se reconstruct nahi.
+ *  Sales: is range mein Sales ko DI GAYI leads (assigned_sales_at); pending = ab bhi Qualified par pari, Sales ne chhua nahi.
+ *  LDR:   is range mein BANI leads (created_at, owner = ldr_uid); pending = ab bhi fresh/new.
+ *  Jis lead ko Sales ne Followup/Hot Lead... kar diya wo yahan se Worked ho jaati hai (aur uski followup date ke hisaab se Scheduled mein aati hai).
+ *  Single-field range query (naya index nahi), cap LIVE_FRESH_CAP — zyada ho to null (purana snapshot-path chalta hai).
+ *  Return [{ id, uid, pending, stage }] ya null. */
+export const LIVE_FRESH_CAP = 4000;
+export async function fetchLiveFresh(teamRole, from, to) {
+  const isSales = teamRole === 'sales';
+  const tsField = isSales ? 'assigned_sales_at' : 'created_at';
+  const ownerField = isSales ? 'sales_uid' : 'ldr_uid';
+  const snap = await getDocs(query(collection(db, 'leads'),
+    where(tsField, '>=', dayStart(from)), where(tsField, '<=', dayEnd(to)), orderBy(tsField, 'asc'), fbLimit(LIVE_FRESH_CAP + 1)));
+  if (snap.size > LIVE_FRESH_CAP) return null;
+  const out = [];
+  snap.forEach((d) => {
+    const l = d.data(); const uid = l[ownerField];
+    if (!uid || l.archived) return;
+    const st = String(l.status || '').toLowerCase().trim(); const ss = String(l.sales_status || '').toLowerCase().trim();
+    const pending = isSales ? (st === 'qualified' && ['', 'qualified', 'fresh', 'new'].includes(ss)) : ['fresh', 'new'].includes(st);
+    out.push({ id: d.id, uid, pending, stage: (isSales ? (ss || st) : st) || 'other' });
+  });
+  return out;
+}
+
 /** MECA ke cards (date-range): is range mein har member ko kitni leads MILI aur unme se abhi kitni pending.
  *  Sales: leads.assigned_sales_at range mein (jis din Sales ko di gayi). LDR: leads.created_at range mein (jis din bani, owner = ldr_uid).
  *  Pending: Sales = abhi bhi sales_open (chhui nahi); LDR = status fresh/new. Archived nahi ginte. Bounded (cap) + 45-min cache — naya index nahi.
@@ -500,6 +525,9 @@ export async function getDashRange(args) {
       }
     };
 
+    // Fresh section ke liye LIVE ginti (saath-saath fetch) — chhoti range (<=62 din) mein; warna purana snapshot-path
+    const liveFreshP = days.length && days.length <= 62 ? fetchLiveFresh(teamRole, days[0], days[days.length - 1]).catch(() => null) : Promise.resolve(null);
+
     // PURANE din — pre-agg `stats_daily/{date}.dash` se (1 read/din)
     const snaps = await Promise.all(pastDays.map((d) => getDoc(doc(db, 'stats_daily', d))));
     snaps.forEach((s, si) => {
@@ -578,6 +606,20 @@ export async function getDashRange(args) {
         M[bk].pend.delete(id); M[bk].work.add(id);
         M[bk].hits[id] = Math.max(1, M[bk].hits[id] || 0); M[bk].wst[id] = touchSt[id] || stages[id] || 'other';
       }
+    }
+
+    // FRESH = LIVE: abhi ki lead se. Pending = ab bhi untouched; kaam ho chuki lead Worked (abhi ke stage ke saath).
+    const lf = await liveFreshP;
+    if (lf) {
+      const oldHits = M.fresh.hits;
+      const uidSet = memberUid ? new Set([memberUid]) : (memberIds && memberIds.length ? new Set(memberIds) : null);
+      const w = new Set(); const p = new Set(); const hits = {}; const wst = {};
+      for (const r of lf) {
+        if (uidSet && !uidSet.has(r.uid)) continue;
+        if (r.pending) p.add(r.id);
+        else { w.add(r.id); hits[r.id] = Math.max(1, oldHits[r.id] || 0); wst[r.id] = r.stage; } // call-count snapshot se (nahi to 1)
+      }
+      M.fresh.work = w; M.fresh.pend = p; M.fresh.hits = hits; M.fresh.wst = wst; lateIds.fresh = [];
     }
 
     const shape = (m, late = []) => {
