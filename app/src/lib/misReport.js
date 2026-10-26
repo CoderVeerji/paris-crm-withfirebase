@@ -22,13 +22,15 @@ function misCacheKey(teamRole, members, from, to) {
   return cacheKey(`mis_${teamRole}_${members.map((m) => m.id).sort().join('.')}_${from}_${to}`);
 }
 
-function mkAcc() { return { hits: {}, wst: {}, work: new Set(), pend: new Set(), late: new Set() }; }
-function merge(acc, src) {
+// kaam ka saboot: lead -> { day: sabse naya din, stage }
+const setAny = (m, id, day, st) => { const c = m.get(id); if (!c || day >= c.day) m.set(id, { day, stage: st || (c && c.stage) || 'other' }); };
+function mkAcc() { return { hits: {}, wst: {}, work: new Set(), pend: new Set(), late: new Set(), pendDay: new Map() }; }
+function merge(acc, src, day) {
   for (const [id, n] of Object.entries(src.hits || {})) {
     acc.hits[id] = (acc.hits[id] || 0) + n; acc.work.add(id);
     if (src.wst && src.wst[id]) acc.wst[id] = src.wst[id];
   }
-  for (const id of (src.pids || [])) acc.pend.add(id);
+  for (const id of (src.pids || [])) { acc.pend.add(id); if (!acc.pendDay.get(id) || day > acc.pendDay.get(id)) acc.pendDay.set(id, day); }
 }
 function shape(acc) {
   for (const id of acc.work) acc.pend.delete(id); // kisi bhi din worked -> pending nahi
@@ -84,29 +86,30 @@ async function misReportUncached({ teamRole, members, from, to }) {
   let missingDays = 0;
 
   const snaps = await Promise.all(days.map((d) => getDoc(doc(db, 'stats_daily', d))));
-  snaps.forEach((s) => {
+  snaps.forEach((s, si) => {
     if (!s.exists() || !s.data().dash) { missingDays++; return; }
     const dash = s.data().dash;
     members.forEach((m) => {
       const dd = dash[m.id]; if (!dd) return;
-      merge(U(m.id).leads, dd.fresh || {});
-      merge(U(m.id).followups, dd.sched || {});
+      merge(U(m.id).leads, dd.fresh || {}, days[si]);
+      merge(U(m.id).followups, dd.sched || {}, days[si]);
       // kisi bhi bucket mein (kisi bhi din) hui kaarwai — cross-bucket "worked" ke liye (neeche)
       for (const bk of ['fresh', 'reinq', 'sched', 'offsched']) {
         const src = dd[bk] || {};
-        for (const id of Object.keys(src.hits || {})) U(m.id).any.set(id, (src.wst && src.wst[id]) || U(m.id).any.get(id) || 'other');
+        for (const id of Object.keys(src.hits || {})) setAny(U(m.id).any, id, days[si], (src.wst && src.wst[id]) || '');
       }
       // Off-Schedule ke pids = us din touch hui par abhi khuli leads — ye bhi "kaam hua" ka saboot
-      for (const id of ((dd.offsched || {}).pids || [])) if (!U(m.id).any.has(id)) U(m.id).any.set(id, 'other');
+      for (const id of ((dd.offsched || {}).pids || [])) setAny(U(m.id).any, id, days[si], '');
     });
   });
 
-  // CROSS-BUCKET: ek bucket mein pending, par kisi aur din/bucket mein us par kaam ho gaya => worked (dashboard jaisa hi)
+  // CROSS-BUCKET (DATE-AWARE): pending din ke BAAD (ya usi din) kisi bhi bucket mein kaam hua => worked. Pehle ka kaam pending nahi mitata.
   Object.values(perUid).forEach((u) => {
     [u.leads, u.followups].forEach((acc) => {
       for (const id of [...acc.pend]) {
-        if (!u.any.has(id)) continue;
-        acc.pend.delete(id); acc.work.add(id); acc.hits[id] = Math.max(1, acc.hits[id] || 0); acc.wst[id] = u.any.get(id);
+        const ev = u.any.get(id); const pd = acc.pendDay.get(id);
+        if (!ev || !pd || ev.day < pd) continue;
+        acc.pend.delete(id); acc.work.add(id); acc.hits[id] = Math.max(1, acc.hits[id] || 0); acc.wst[id] = ev.stage;
       }
     });
   });
@@ -116,7 +119,9 @@ async function misReportUncached({ teamRole, members, from, to }) {
   {
     const everyAcc = Object.values(perUid).flatMap((u) => [u.leads, u.followups]);
     const allPend = everyAcc.flatMap((a) => [...a.pend]);
-    const cleared = await laterClearedIds(allPend, days[days.length - 1], { teamRole, afterEnd: days[days.length - 1] < today, sinceMs: days[days.length - 1] >= today ? dayStart(days[0]).getTime() : null }).catch(() => null);
+    const sinceMap = {};
+    if (days[days.length - 1] >= today) everyAcc.forEach((a) => a.pendDay.forEach((d, id) => { const ms = dayStart(d).getTime(); if (!sinceMap[id] || ms > sinceMap[id]) sinceMap[id] = ms; }));
+    const cleared = await laterClearedIds(allPend, days[days.length - 1], { teamRole, afterEnd: days[days.length - 1] < today, sinceMap: days[days.length - 1] >= today ? sinceMap : null }).catch(() => null);
     if (cleared) everyAcc.forEach((a) => { for (const id of [...a.pend]) if (!a.work.has(id) && cleared.has(id)) { a.pend.delete(id); a.late.add(id); } });
   }
 

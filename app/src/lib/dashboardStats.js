@@ -441,7 +441,7 @@ export function memberLeadCounts(teamRole, uids) {
  *  hone ke baad) koi bhi kaam hua (last_action_at >= sinceMs) wo ab pending nahi. Yahi dashboard ka "live pending" hai. */
 export const LIVE_RECHECK_CAP = 600;
 export async function laterClearedIds(ids, endDay, opts = {}) {
-  const { teamRole = '', afterEnd = true, sinceMs = null, info = null, stages = null } = opts;
+  const { teamRole = '', afterEnd = true, sinceMs = null, sinceMap = null, timeLogic = true, info = null, stages = null } = opts;
   const list = [...new Set(ids)];
   if (list.length === 0) return new Set();
   if (list.length > LIVE_RECHECK_CAP) return null;
@@ -456,8 +456,9 @@ export async function laterClearedIds(ids, endDay, opts = {}) {
     const la = l.last_action_at?.toMillis ? l.last_action_at.toMillis() : 0;
     const notSales = teamRole === 'sales' && String(l.status || '').toLowerCase() !== 'qualified';
     if (stages) stages[d.id] = String((teamRole === 'sales' ? l.sales_status : l.status) || '').toLowerCase().trim() || 'other';
-    const workedSince = sinceMs != null && la >= sinceMs;
-    if (l.archived || notSales || (afterEnd && la > endMs) || workedSince) {
+    // sinceMap: is lead ke LAST pending din ke shuru se (usse pehle ka kaam pending ko clear nahi karta); sinceMs: puraana scalar form
+    const workedSince = timeLogic && (sinceMap ? la >= (sinceMap[d.id] ?? Infinity) : (sinceMs != null && la >= sinceMs));
+    if (l.archived || notSales || (timeLogic && afterEnd && la > endMs) || workedSince) {
       cleared.add(d.id);
       // info: aaj wali range mein "kaam ho gaya" (pending nahi) leads — dashboard unhe Worked mein current stage ke saath ginta hai
       if (info) info[d.id] = { worked: workedSince && !l.archived && !notSales, stage: String((teamRole === 'sales' ? l.sales_status : l.status) || '').toLowerCase().trim() || 'other' };
@@ -482,24 +483,33 @@ export async function getDashRange(args) {
     let capped = false;    // koi din ka doc missing
     let building = false;  // purana format (list nahi) — backfill pending
 
-    const merge = (src, bk) => {
+    // DATE-AWARE saboot: lead kis din pending thi (pendDay, Fresh/Re-Inquiry/Scheduled) aur kis din us par kaam hua (touchDay, kisi bhi bucket
+    // mein — hits, ya Off-Schedule ke pids = us din touch hui par abhi khuli). Kaam tabhi "pending clear" karta hai jab wo pending din ke
+    // BAAD (ya usi din) ho — pehle ka kaam (din 1 ka call, followup din 3 ka) pending nahi mitata.
+    const pendDay = {}; const touchDay = {}; const touchSt = {};
+    const mx = (o, id, day) => { if (!o[id] || day > o[id]) o[id] = day; };
+    const merge = (src, bk, day) => {
       for (const [id, n] of Object.entries(src.hits || {})) {
         M[bk].hits[id] = (M[bk].hits[id] || 0) + n; M[bk].work.add(id);
         if (src.wst && src.wst[id]) M[bk].wst[id] = src.wst[id]; // latest din ka status jeette
+        if (!touchDay[id] || day >= touchDay[id]) { touchDay[id] = day; if (src.wst && src.wst[id]) touchSt[id] = src.wst[id]; }
       }
-      for (const id of (src.pids || [])) M[bk].pend.add(id);
+      for (const id of (src.pids || [])) {
+        M[bk].pend.add(id);
+        if (bk === 'offsched') mx(touchDay, id, day); else mx(pendDay, id, day);
+      }
     };
 
     // PURANE din — pre-agg `stats_daily/{date}.dash` se (1 read/din)
     const snaps = await Promise.all(pastDays.map((d) => getDoc(doc(db, 'stats_daily', d))));
-    snaps.forEach((s) => {
+    snaps.forEach((s, si) => {
       if (!s.exists() || !s.data().dash) { capped = true; return; }
       const dd = s.data().dash[key];
       if (!dd) return;
       for (const bk of DASH_BK) {
         const src = dd[bk] || {};
         if (!src.hits && !src.pids && (src.total || src.pending)) building = true;
-        merge(src, bk);
+        merge(src, bk, pastDays[si]);
       }
     });
 
@@ -511,12 +521,12 @@ export async function getDashRange(args) {
       if (memberUid) {
         const live = await dashDayLive({ teamRole, memberUid, memberIds }, today).catch(() => null);
         if (!live) capped = true;
-        else for (const bk of DASH_BK) { merge(live[bk] || {}, bk); if (live[bk] && live[bk].capped) capped = true; }
+        else for (const bk of DASH_BK) { merge(live[bk] || {}, bk, today); if (live[bk] && live[bk].capped) capped = true; }
       } else {
         const s = await getDoc(doc(db, 'stats_daily', today));
         const dd = s.exists() && s.data().dash ? s.data().dash[key] : null;
         if (!dd) capped = true;
-        else for (const bk of DASH_BK) { const src = dd[bk] || {}; if (!src.hits && !src.pids && (src.total || src.pending)) building = true; merge(src, bk); }
+        else for (const bk of DASH_BK) { const src = dd[bk] || {}; if (!src.hits && !src.pids && (src.total || src.pending)) building = true; merge(src, bk, today); }
       }
     }
 
@@ -528,18 +538,25 @@ export async function getDashRange(args) {
     // "shaam ko assign, agli subah kaam" wali leads Fresh pending mein atki rehti thi (dashboard pending MECA se bahut zyada).
     // Off-Schedule ka "still working" bucket khud nahi chhedte (wo chalta hua kaam hai) — par uski leads us din TOUCH hui thi, isliye
     // wo "kaam hua" ka saboot hain: server touch hui + abhi khuli lead ko offsched.pids mein rakhta hai (hits mein nahi) — pehle ye chhoot jaata tha.
-    const anyWst = {};
-    for (const bk of DASH_BK) for (const id of M[bk].work) anyWst[id] = M[bk].wst[id] || anyWst[id] || '';
-    M.offsched.pend.forEach((id) => { if (!(id in anyWst)) anyWst[id] = ''; });
     const stages = {};
 
     // Poori range beet chuki hai -> frozen pending ko live recheck: baad mein clear hui leads pending se hatao
     const lateIds = { fresh: [], reinq: [], sched: [], offsched: [] };
     let liveSkipped = false;
     if (days.length) {
-      const allPend = DASH_BK.flatMap((bk) => [...M[bk].pend]);
+      const timedBk = ['fresh', 'reinq', 'sched'];
+      const timedPend = [...new Set(timedBk.flatMap((bk) => [...M[bk].pend]))];
+      const offPend = [...M.offsched.pend];
+      const allPend = [...new Set([...timedPend, ...offPend])];
       const info = {};
-      const cleared = await laterClearedIds(allPend, days[days.length - 1], { teamRole, afterEnd: !wantToday, sinceMs: wantToday ? dayStart(days[0]).getTime() : null, info, stages }).catch(() => null);
+      // per-id "is lead ke last pending din ke shuru se" — aaj wali range mein pre-agg ke baad hua kaam tabhi pending clear karta hai
+      const sinceMap = {}; if (wantToday) timedPend.forEach((id) => { if (pendDay[id]) sinceMap[id] = dayStart(pendDay[id]).getTime(); });
+      const [c1, c2] = await Promise.all([
+        laterClearedIds(timedPend, days[days.length - 1], { teamRole, afterEnd: !wantToday, sinceMap: wantToday ? sinceMap : null, info, stages }).catch(() => null),
+        // Off-Schedule "still working" = chalta hua kaam — sirf archive / ab-Sales-ki-nahi wale hatao, time-logic nahi
+        laterClearedIds(offPend, days[days.length - 1], { teamRole, timeLogic: false, info, stages }).catch(() => null),
+      ]);
+      const cleared = (c1 === null || c2 === null) ? null : new Set([...c1, ...c2]);
       if (cleared === null) liveSkipped = allPend.length > 0;
       else {
         for (const bk of DASH_BK) {
@@ -553,12 +570,13 @@ export async function getDashRange(args) {
       }
     }
 
-    // CROSS-BUCKET promotion: kisi bhi bucket/din mein kaam ka saboot mila => Fresh / Re-Inquiry / Scheduled mein pending nahi, Worked.
+    // CROSS-BUCKET promotion (DATE-AWARE): kaam ka saboot (touchDay) lead ke LAST pending din (pendDay) ya uske baad ka ho => Worked.
+    // (Pehle ka kaam — jaise din-1 ka call jab followup din-3 ka tha — pending nahi mitata.)
     for (const bk of ['fresh', 'reinq', 'sched']) {
       for (const id of [...M[bk].pend]) {
-        if (!(id in anyWst)) continue;
+        if (!touchDay[id] || !pendDay[id] || touchDay[id] < pendDay[id]) continue;
         M[bk].pend.delete(id); M[bk].work.add(id);
-        M[bk].hits[id] = Math.max(1, M[bk].hits[id] || 0); M[bk].wst[id] = anyWst[id] || stages[id] || 'other';
+        M[bk].hits[id] = Math.max(1, M[bk].hits[id] || 0); M[bk].wst[id] = touchSt[id] || stages[id] || 'other';
       }
     }
 
