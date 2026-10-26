@@ -522,6 +522,20 @@ export async function getDashRange(args) {
     // range ke kisi bhi din worked hui -> pending nahi
     for (const bk of DASH_BK) for (const id of M[bk].work) M[bk].pend.delete(id);
 
+    // CROSS-BUCKET: lead jis din assign/schedule hui us din pending thi (Fresh/Scheduled bucket), par agle din (kisi aur bucket mein —
+    // Off-Schedule / Scheduled) us par kaam ho gaya — wo bhi pending nahi. Pehle sirf SAME bucket ka kaam ginte the, isliye
+    // "shaam ko assign, agli subah kaam" wali leads Fresh pending mein atki rehti thi (dashboard pending MECA se bahut zyada).
+    // Off-Schedule ka "still working" yahan nahi chhedte (wo pending nahi, chalta hua kaam hai).
+    const anyWst = {};
+    for (const bk of DASH_BK) for (const id of M[bk].work) anyWst[id] = M[bk].wst[id] || anyWst[id] || 'other';
+    for (const bk of ['fresh', 'reinq', 'sched']) {
+      for (const id of [...M[bk].pend]) {
+        if (!(id in anyWst)) continue;
+        M[bk].pend.delete(id); M[bk].work.add(id);
+        M[bk].hits[id] = Math.max(1, M[bk].hits[id] || 0); M[bk].wst[id] = anyWst[id];
+      }
+    }
+
     // Poori range beet chuki hai -> frozen pending ko live recheck: baad mein clear hui leads pending se hatao
     const lateIds = { fresh: [], reinq: [], sched: [], offsched: [] };
     let liveSkipped = false;

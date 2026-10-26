@@ -79,8 +79,8 @@ async function misReportUncached({ teamRole, members, from, to }) {
   if (days.length === 0) return { rows: [], team: null, capped: false, days: 0 };
   if (days.length > MIS_DAY_CAP) return { rows: [], team: null, capped: true, days: days.length };
 
-  const perUid = {}; // uid -> { leads: acc, followups: acc }
-  const U = (uid) => (perUid[uid] || (perUid[uid] = { leads: mkAcc(), followups: mkAcc() }));
+  const perUid = {}; // uid -> { leads: acc, followups: acc, any: Map(leadId -> stage) }
+  const U = (uid) => (perUid[uid] || (perUid[uid] = { leads: mkAcc(), followups: mkAcc(), any: new Map() }));
   let missingDays = 0;
 
   const snaps = await Promise.all(days.map((d) => getDoc(doc(db, 'stats_daily', d))));
@@ -91,6 +91,21 @@ async function misReportUncached({ teamRole, members, from, to }) {
       const dd = dash[m.id]; if (!dd) return;
       merge(U(m.id).leads, dd.fresh || {});
       merge(U(m.id).followups, dd.sched || {});
+      // kisi bhi bucket mein (kisi bhi din) hui kaarwai — cross-bucket "worked" ke liye (neeche)
+      for (const bk of ['fresh', 'reinq', 'sched', 'offsched']) {
+        const src = dd[bk] || {};
+        for (const id of Object.keys(src.hits || {})) U(m.id).any.set(id, (src.wst && src.wst[id]) || U(m.id).any.get(id) || 'other');
+      }
+    });
+  });
+
+  // CROSS-BUCKET: ek bucket mein pending, par kisi aur din/bucket mein us par kaam ho gaya => worked (dashboard jaisa hi)
+  Object.values(perUid).forEach((u) => {
+    [u.leads, u.followups].forEach((acc) => {
+      for (const id of [...acc.pend]) {
+        if (!u.any.has(id)) continue;
+        acc.pend.delete(id); acc.work.add(id); acc.hits[id] = Math.max(1, acc.hits[id] || 0); acc.wst[id] = u.any.get(id);
+      }
     });
   });
 
@@ -105,7 +120,7 @@ async function misReportUncached({ teamRole, members, from, to }) {
 
   const teamLeads = mkAcc(); const teamFu = mkAcc();
   const rows = members.map((m) => {
-    const acc = perUid[m.id] || { leads: mkAcc(), followups: mkAcc() };
+    const acc = perUid[m.id] || { leads: mkAcc(), followups: mkAcc(), any: new Map() };
     // team total ke liye bhi union karo (ek hi lead do logon ke under nahi aati, safe hai)
     acc.leads.work.forEach((id) => teamLeads.work.add(id));
     acc.leads.pend.forEach((id) => teamLeads.pend.add(id));
