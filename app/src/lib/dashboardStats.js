@@ -49,13 +49,13 @@ export function bustDashCache() {
   } catch { /* private mode — kuch nahi */ }
 }
 
-function cached(rawKey, fn) {
+function cached(rawKey, fn, ttl = CACHE_TTL) {
   const key = CK(rawKey);
   try {
     const raw = localStorage.getItem(key);
     if (raw) {
       const { at, v } = JSON.parse(raw);
-      if (Date.now() - at < CACHE_TTL) return Promise.resolve(v);
+      if (Date.now() - at < ttl) return Promise.resolve(v);
       localStorage.removeItem(key); // expire ho chuki — turant hata do
     }
   } catch { /* private mode / quota — bas fetch kar lo */ }
@@ -436,10 +436,12 @@ export function memberLeadCounts(teamRole, uids) {
  *  sirf pending ghatta hai aur "baad mein clear" alag ginti hota hai. Free-tier guard: LIVE_RECHECK_CAP se
  *  zyada ids ho to skip (null) — card frozen number dikhata hai.  Return null = check nahi hua.
  *  opts.teamRole==='sales': jo lead ab 'qualified' nahi (LDR/admin ne lost/wapas kar di) wo Sales ki zimmedari nahi
- *  — pending se hat jaati hai. opts.afterEnd=false (range mein aaj shaamil) to "range ke baad kaam hua" check nahi hota. */
+ *  — pending se hat jaati hai. opts.afterEnd=false (range mein aaj shaamil) to "range ke baad kaam hua" check nahi hota.
+ *  opts.sinceMs: range mein aaj shaamil ho to pre-agg ka aaj wala hissa ~90 min purana hota hai — jis lead pe uske baad (range shuru
+ *  hone ke baad) koi bhi kaam hua (last_action_at >= sinceMs) wo ab pending nahi. Yahi dashboard ka "live pending" hai. */
 export const LIVE_RECHECK_CAP = 600;
 export async function laterClearedIds(ids, endDay, opts = {}) {
-  const { teamRole = '', afterEnd = true } = opts;
+  const { teamRole = '', afterEnd = true, sinceMs = null, info = null } = opts;
   const list = [...new Set(ids)];
   if (list.length === 0) return new Set();
   if (list.length > LIVE_RECHECK_CAP) return null;
@@ -453,7 +455,12 @@ export async function laterClearedIds(ids, endDay, opts = {}) {
     const l = d.data();
     const la = l.last_action_at?.toMillis ? l.last_action_at.toMillis() : 0;
     const notSales = teamRole === 'sales' && String(l.status || '').toLowerCase() !== 'qualified';
-    if (l.archived || notSales || (afterEnd && la > endMs)) cleared.add(d.id);
+    const workedSince = sinceMs != null && la >= sinceMs;
+    if (l.archived || notSales || (afterEnd && la > endMs) || workedSince) {
+      cleared.add(d.id);
+      // info: aaj wali range mein "kaam ho gaya" (pending nahi) leads — dashboard unhe Worked mein current stage ke saath ginta hai
+      if (info) info[d.id] = { worked: workedSince && !l.archived && !notSales, stage: String((teamRole === 'sales' ? l.sales_status : l.status) || '').toLowerCase().trim() || 'other' };
+    }
   }));
   list.forEach((id) => { if (!seen.has(id)) cleared.add(id); }); // delete/recycle ho chuki
   return cleared;
@@ -461,6 +468,7 @@ export async function laterClearedIds(ids, endDay, opts = {}) {
 
 export async function getDashRange(args) {
   const { teamRole, memberUid, memberIds, from, to } = args;
+  const liveTtl = to >= istDay() ? 3 * 60 * 1000 : 20 * 60 * 1000; // aaj wali range ~live (3 min), sirf purani dates 20 min
   return cached(`pc_dashrange6_${teamRole}_${memberUid || 't'}_${from}_${to}`, async () => {
     const today = istDay();
     const days = daysBetween(from, to).filter((d) => d <= today);
@@ -519,9 +527,19 @@ export async function getDashRange(args) {
     let liveSkipped = false;
     if (days.length) {
       const allPend = DASH_BK.flatMap((bk) => [...M[bk].pend]);
-      const cleared = await laterClearedIds(allPend, days[days.length - 1], { teamRole, afterEnd: !wantToday }).catch(() => null);
+      const info = {};
+      const cleared = await laterClearedIds(allPend, days[days.length - 1], { teamRole, afterEnd: !wantToday, sinceMs: wantToday ? dayStart(days[0]).getTime() : null, info }).catch(() => null);
       if (cleared === null) liveSkipped = allPend.length > 0;
-      else for (const bk of DASH_BK) for (const id of [...M[bk].pend]) if (cleared.has(id)) { M[bk].pend.delete(id); lateIds[bk].push(id); }
+      else {
+        for (const bk of DASH_BK) {
+          for (const id of [...M[bk].pend]) {
+            if (!cleared.has(id)) continue;
+            M[bk].pend.delete(id);
+            // aaj wali range: pre-agg ke BAAD kaam hua -> Worked (status ke saath), baaki (archive/ab Sales ki nahi) -> "baad mein" hint
+            if (info[id]?.worked) { M[bk].work.add(id); M[bk].hits[id] = Math.max(1, M[bk].hits[id] || 0); M[bk].wst[id] = info[id].stage; } else lateIds[bk].push(id);
+          }
+        }
+      }
     }
 
     const shape = (m, late = []) => {
@@ -547,7 +565,7 @@ export async function getDashRange(args) {
       };
     };
     return { fresh: shape(M.fresh, lateIds.fresh), reinq: shape(M.reinq, lateIds.reinq), sched: shape(M.sched, lateIds.sched), offsched: shape(M.offsched, lateIds.offsched) };
-  });
+  }, liveTtl);
 }
 
 /** aggregateDay ki DASH logic ka SINGLE-DAY, LIVE version — AAJ ke liye. Wahi semantics —

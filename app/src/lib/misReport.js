@@ -8,6 +8,7 @@
 import { doc, getDoc } from 'firebase/firestore';
 import { db } from '../firebase';
 import { daysBetween, istDay } from './stats';
+import { dayStart } from './daterange';
 import { cacheKey, laterClearedIds } from './dashboardStats';
 
 // Poora saal (365) bhi ek MIS view load pe sirf 365 reads hai — is admin-only, kabhi-kabhi khulne
@@ -63,7 +64,7 @@ export async function misReport({ teamRole, members, from, to, force = false }) 
       const raw = localStorage.getItem(key);
       if (raw) {
         const { at, v } = JSON.parse(raw);
-        if (Date.now() - at < MIS_TTL) return v;
+        if (Date.now() - at < (to >= istDay() ? 3 * 60 * 1000 : MIS_TTL)) return v; // aaj shaamil = ~live (3 min)
       }
     } catch { /* private mode — bas fetch kar lo */ }
   }
@@ -98,7 +99,7 @@ async function misReportUncached({ teamRole, members, from, to }) {
   {
     const everyAcc = Object.values(perUid).flatMap((u) => [u.leads, u.followups]);
     const allPend = everyAcc.flatMap((a) => [...a.pend]);
-    const cleared = await laterClearedIds(allPend, days[days.length - 1], { teamRole, afterEnd: days[days.length - 1] < today }).catch(() => null);
+    const cleared = await laterClearedIds(allPend, days[days.length - 1], { teamRole, afterEnd: days[days.length - 1] < today, sinceMs: days[days.length - 1] >= today ? dayStart(days[0]).getTime() : null }).catch(() => null);
     if (cleared) everyAcc.forEach((a) => { for (const id of [...a.pend]) if (!a.work.has(id) && cleared.has(id)) { a.pend.delete(id); a.late.add(id); } });
   }
 
