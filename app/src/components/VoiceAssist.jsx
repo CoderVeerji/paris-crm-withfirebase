@@ -1,15 +1,13 @@
-// Voice: mic dabao, bolo — text remark/sawaal mein aa jata hai (browser ki free Speech API, koi server/AI nahi).
-// Saath mein (compact=false): bole hue text se "Next call kab" aur form ke options (jaise Customer Type) ka SUGGESTION — "Lagao" dabane par hi bharta hai.
-import { useEffect, useMemo, useRef, useState } from 'react';
+// Voice: mic dabao, bolo — text remark/sawaal mein aata hai (browser ki free Speech API, koi server/AI nahi). Mic chalu / awaaz mil rahi hai / pause dikhta hai;
+// Pause / Complete dono hain. Saath mein (compact=false): bole hue text se "Next call kab" aur form ke options ka SUGGESTION — "Lagao" dabane par hi bharta hai.
+import { useMemo, useRef, useState } from 'react';
 import { useT } from '../i18n';
 import { toast } from '../toast';
 import { parseFollowup, toLocalInput, matchFormAnswers } from '../lib/voiceParse';
+import { useVoiceSession, voiceSupported, readVoiceLang, saveVoiceLang } from '../lib/useVoiceSession';
+import VoiceStatus from './VoiceStatus';
 
-const SR = typeof window !== 'undefined' ? (window.SpeechRecognition || window.webkitSpeechRecognition) : null;
-export const voiceSupported = () => !!(typeof window !== 'undefined' && (window.SpeechRecognition || window.webkitSpeechRecognition));
-
-const LANG_KEY = 'pc_voice_lang';
-const readLang = (appLang) => { try { const v = localStorage.getItem(LANG_KEY); if (v) return v; } catch { /* ignore */ } return appLang === 'en' ? 'en-IN' : 'hi-IN'; };
+export { voiceSupported };
 
 function when(d, t) {
   const today = new Date(); today.setHours(0, 0, 0, 0);
@@ -23,69 +21,47 @@ export default function VoiceAssist({
   value, onChange, compact = false, needsDate = false, nextDt = '', onSetDate, formFields = [], splitList, answers = {}, onSetAnswer,
 }) {
   const { t, lang: appLang } = useT();
-  const [lang, setLang] = useState(() => readLang(appLang));
-  const [on, setOn] = useState(false);
-  const recRef = useRef(null);
+  const [lang, setLang] = useState(() => readVoiceLang(appLang));
   const baseRef = useRef('');
   const valueRef = useRef(value);
   valueRef.current = value;
-
-  useEffect(() => () => { try { recRef.current?.abort(); } catch { /* ignore */ } }, []);
-
   const join = (a, b) => (a ? `${a.replace(/\s+$/, '')} ${b}` : b).trim();
 
-  function start() {
-    if (!SR) return;
-    const rec = new SR();
-    rec.lang = lang; rec.interimResults = true; rec.continuous = false; rec.maxAlternatives = 1;
-    baseRef.current = valueRef.current || '';
-    rec.onresult = (e) => {
-      let fin = ''; let interim = '';
-      for (let i = e.resultIndex; i < e.results.length; i++) {
-        const r = e.results[i]; const txt = r[0]?.transcript || '';
-        if (r.isFinal) fin += txt; else interim += txt;
-      }
-      if (fin) baseRef.current = join(baseRef.current, fin.trim());
-      onChange(interim ? join(baseRef.current, interim.trim()) : baseRef.current);
-    };
-    rec.onerror = (e) => {
-      if (e.error === 'not-allowed' || e.error === 'service-not-allowed') toast(t('vaDenied'), 'err');
-      else if (e.error === 'no-speech') toast(t('vaNoSpeech'), 'err');
-      else if (e.error !== 'aborted') toast(t('vaFail'), 'err');
-    };
-    rec.onend = () => { setOn(false); recRef.current = null; };
-    try { rec.start(); recRef.current = rec; setOn(true); } catch { setOn(false); }
-  }
-  function stop() { try { recRef.current?.stop(); } catch { /* ignore */ } }
-  function flipLang() {
-    const n = lang === 'hi-IN' ? 'en-IN' : 'hi-IN'; setLang(n);
-    try { localStorage.setItem(LANG_KEY, n); } catch { /* ignore */ }
-  }
+  const v = useVoiceSession({
+    lang,
+    onUpdate: (txt) => onChange(join(baseRef.current, txt)),
+    onComplete: (txt) => onChange(join(baseRef.current, txt)),
+    onError: (c) => toast(c === 'denied' ? t('vaDenied') : c === 'nospeech' ? t('vaNoSpeech') : t('vaFail'), 'err'),
+  });
+  const active = v.state !== 'idle';
+
+  function begin() { baseRef.current = valueRef.current || ''; v.start(); }
+  function flipLang() { const n = lang === 'hi-IN' ? 'en-IN' : 'hi-IN'; setLang(n); saveVoiceLang(n); }
 
   // suggestions (sirf jab mic band ho) — bole YA likhe hue remark se
   const sugg = useMemo(() => {
-    if (compact || on) return { date: null, ans: [] };
+    if (compact || active) return { date: null, ans: [] };
     const d = needsDate ? parseFollowup(value) : null;
     const dStr = d ? toLocalInput(d) : '';
     const date = d && dStr !== nextDt ? { d, v: dStr } : null;
     const m = matchFormAnswers(value, formFields, splitList);
-    const ans = Object.entries(m).filter(([l, v]) => String(answers[l] || '') !== v).map(([l, v]) => ({ l, v }));
+    const ans = Object.entries(m).filter(([l, val]) => String(answers[l] || '') !== val).map(([l, val]) => ({ l, v: val }));
     return { date, ans };
-  }, [value, on, compact, needsDate, nextDt, formFields, splitList, answers]);
+  }, [value, active, compact, needsDate, nextDt, formFields, splitList, answers]);
 
-  if (!SR) return null; // Firefox / kuch iPhone browsers — mic hi nahi dikhate
+  if (!voiceSupported()) return null; // Firefox / kuch iPhone browsers — mic hi nahi dikhate
 
   return (
     <div className={`va ${compact ? 'va-compact' : ''}`}>
-      <button type="button" className={`va-mic ${on ? 'on' : ''}`} onClick={on ? stop : start} aria-pressed={on}
-        aria-label={on ? t('vaStop') : t('vaSpeak')} title={on ? t('vaStop') : t('vaSpeak')}>
-        <i className={`fas ${on ? 'fa-stop' : 'fa-microphone'}`} />{!compact && <span>{on ? t('vaListening') : t('vaSpeak')}</span>}
-      </button>
-      {!compact && (
-        <button type="button" className="va-lang" onClick={flipLang} disabled={on} title={t('vaLangTip')} aria-label={t('vaLangTip')}>
-          {lang === 'hi-IN' ? 'हि' : 'EN'}
+      {!active && (
+        <button type="button" className="va-mic" onClick={begin} aria-label={t('vaSpeak')} title={t('vaSpeak')}>
+          <i className="fas fa-microphone" />{!compact && <span>{t('vaSpeak')}</span>}
         </button>
       )}
+      {!active && !compact && (
+        <button type="button" className="va-lang" onClick={flipLang} title={t('vaLangTip')} aria-label={t('vaLangTip')}>{lang === 'hi-IN' ? 'हि' : 'EN'}</button>
+      )}
+      {active && <div className="va-status"><VoiceStatus v={v} showText={false} /></div>}
       {(sugg.date || sugg.ans.length > 0) && (
         <div className="va-sugg">
           <small><i className="fas fa-wand-magic-sparkles" /> {t('vaSuggest')}</small>

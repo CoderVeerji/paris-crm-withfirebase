@@ -1375,24 +1375,56 @@ table.mis-t th.mis-th-group { text-align: center; background: color-mix(in srgb,
 .ld-pend { display: inline-block; min-width: 26px; padding: 2px 9px; border-radius: 999px; background: var(--danger); color: #fff; font-weight: 800; text-align: center; }
 .ld-ok { color: var(--success); font-weight: 700; }
 /* Aaj ke time-wale callbacks (components/TodayCallbacks.jsx) + card par highlight */
-.tcb { margin: 6px 0 26px; /* filterbar ka margin -14px hai — uske neeche na dabe */  padding: 10px 12px; border-radius: var(--radius); background: color-mix(in srgb, var(--navy-accent) 8%, var(--card));
+.tcb { margin: 4px 0 24px; /* filterbar ka margin -14px hai — uske neeche na dabe */  padding: 7px 10px; border-radius: var(--radius); background: color-mix(in srgb, var(--navy-accent) 8%, var(--card));
   border: 1px solid color-mix(in srgb, var(--navy-accent) 30%, var(--line)); }
-.tcb-head { display: flex; justify-content: space-between; align-items: center; gap: 8px; font-size: 12px; color: var(--muted); margin-bottom: 8px; }
+.tcb-head { display: flex; justify-content: space-between; align-items: center; gap: 8px; font-size: 12px; color: var(--muted); margin-bottom: 5px; }
 .tcb-head b { color: var(--ink); font-size: 13px; }
 .tcb-head b i { color: var(--navy-accent); margin-right: 4px; }
 .tcb-list { display: flex; flex-direction: column; gap: 7px; }
-.tcb-row { display: flex; align-items: center; gap: 12px; padding: 9px 12px; border-radius: 12px; background: var(--card); border: 1.5px solid var(--line-2); cursor: pointer; position: relative; }
-.tcb-when { flex: 0 0 auto; display: flex; flex-direction: column; align-items: center; gap: 2px; min-width: 70px; color: var(--navy-accent); }
-.tcb-when i { font-size: 13px; }
-.tcb-when b { font-size: 14px; font-weight: 800; white-space: nowrap; }
-.tcb-who { flex: 1; min-width: 0; display: flex; flex-direction: column; }
-.tcb-sub { font-size: 12px; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.tcb-row { display: flex; align-items: center; gap: 10px; padding: 5px 8px 5px 10px; border-radius: 10px; background: var(--card); border: 1.5px solid var(--line-2); cursor: pointer; position: relative; }
+.tcb-when { flex: 0 0 auto; display: inline-flex; align-items: center; gap: 5px; min-width: 84px; color: var(--navy-accent); }
+.tcb-when i { font-size: 12px; }
+.tcb-when b { font-size: 13.5px; font-weight: 800; white-space: nowrap; }
+.tcb-who { flex: 1; min-width: 0; display: flex; align-items: baseline; gap: 8px; }
+.tcb-name { font-size: 13px; font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.tcb-sub { font-size: 11px; color: var(--muted); white-space: nowrap; flex-shrink: 0; }
+.tcb-flag { font-style: normal; font-size: 9.5px; font-weight: 800; letter-spacing: 0.05em; text-transform: uppercase; padding: 1px 7px; border-radius: 999px; background: var(--navy-accent); color: #fff; flex-shrink: 0; }
+.tcb-toggle { align-self: flex-start; background: none; border: 0; padding: 3px 4px; font-size: 12px; font-weight: 700; color: var(--navy-accent); cursor: pointer; }
+.tcb-toggle.past { color: var(--danger); }
+.tcb-toggle i { font-size: 10px; }
 .tcb-act { display: flex; gap: 6px; flex-shrink: 0; }
-.tcb-act .btn { padding: 8px 11px; }
+.tcb-act .btn { padding: 0 9px; height: 28px; min-height: 0; font-size: 12.5px; display: inline-flex; align-items: center; justify-content: center; }
+.tcb-act .btn svg { width: 16px; height: 16px; }
+.tcb-row .tcb-flag { position: static; }
+.tcb-foot { display: flex; flex-wrap: wrap; gap: 4px 14px; align-items: center; }
 .tcb-row.next { border-color: var(--navy-accent); box-shadow: 0 0 0 2px color-mix(in srgb, var(--navy-accent) 25%, transparent); }
 .tcb-row.past { border-color: color-mix(in srgb, var(--danger) 55%, var(--line)); background: color-mix(in srgb, var(--danger) 7%, var(--card)); }
 .tcb-row.past .tcb-when { color: var(--danger); }
-.tcb-more { margin: 8px 0 0; font-size: 12px; color: var(--muted); text-align: center; }
+.tcb-list { gap: 5px; }
+/* Voice session status (components/VoiceStatus.jsx) */
+.vs { margin: 8px 0; padding: 10px 12px; border-radius: 12px; background: color-mix(in srgb, var(--navy-accent) 8%, var(--card)); border: 1.5px solid var(--navy-accent); }
+.vs-top { display: flex; align-items: center; gap: 10px; }
+.vs-msg { font-size: 13.5px; color: var(--ink); }
+.vs-bars { display: inline-flex; align-items: flex-end; gap: 3px; height: 22px; }
+.vs-bars i { display: block; width: 4px; height: 6px; border-radius: 2px; background: var(--muted); opacity: 0.6; }
+.vs-hearing .vs-bars i { background: var(--success); opacity: 1; animation: vs-bar 0.9s ease-in-out infinite; }
+.vs-hearing .vs-bars i:nth-child(2) { animation-delay: 0.12s; } .vs-hearing .vs-bars i:nth-child(3) { animation-delay: 0.24s; }
+.vs-hearing .vs-bars i:nth-child(4) { animation-delay: 0.36s; } .vs-hearing .vs-bars i:nth-child(5) { animation-delay: 0.48s; }
+.vs-wait .vs-bars i { animation: vs-idle 1.6s ease-in-out infinite; }
+.vs-hearing { border-color: var(--success); background: color-mix(in srgb, var(--success) 10%, var(--card)); }
+.vs-quiet { border-color: var(--warning); background: color-mix(in srgb, var(--warning) 10%, var(--card)); }
+.vs-paused { border-color: var(--line-2); background: var(--card); }
+@keyframes vs-bar { 0%, 100% { height: 5px; } 50% { height: 22px; } }
+@keyframes vs-idle { 0%, 100% { height: 6px; } 50% { height: 10px; } }
+@media (prefers-reduced-motion: reduce) { .vs-bars i { animation: none !important; height: 12px; } }
+.vs-timer { flex: 1; height: 4px; border-radius: 2px; background: color-mix(in srgb, var(--warning) 30%, transparent); position: relative; overflow: hidden; }
+.vs-timer::after { content: ''; position: absolute; inset: 0; background: var(--warning); transform-origin: left; animation: vs-count linear forwards; animation-duration: inherit; }
+@keyframes vs-count { from { transform: scaleX(1); } to { transform: scaleX(0); } }
+.vs-text { margin: 8px 0 2px; font-size: 14px; font-weight: 600; color: var(--ink); }
+.vs-btns { display: flex; gap: 8px; margin-top: 8px; }
+.vs-btns .btn { padding: 8px 14px; font-size: 13px; }
+.vs-btns .vs-x { margin-left: auto; padding: 8px 12px; }
+.va-status { flex-basis: 100%; }
 /* Voice quick update (components/VoiceQuick.jsx) */
 .vq { margin-bottom: 12px; }
 .vq-btn { width: 100%; display: flex; align-items: center; justify-content: center; gap: 10px; padding: 13px 14px; border-radius: 12px; font-size: 14.5px; font-weight: 800;
