@@ -122,6 +122,37 @@ export function toLocalInput(d) {
   return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}T${p(d.getHours())}:${p(d.getMinutes())}`;
 }
 
+// Bolne ke alag-alag tareeke (Roman + Hindi) -> stage ka naam. Sirf un stages ke liye jo config mein hain. Pehle aane wala shabd jeetta hai.
+const STAGE_ALIASES = {
+  'call back': ['call back', 'callback', 'कॉल बैक', 'कॉलबैक', 'दोबारा कॉल', 'बाद में कॉल', 'phir call', 'baad me call', 'baad mein call'],
+  followup: ['followup', 'follow up', 'follow-up', 'फॉलोअप', 'फॉलो अप', 'फालो अप', 'फालोअप', 'फालो', 'फॉलो', 'फ़ॉलो', 'फ़ालो'],
+  'visit customer': ['visit customer', 'visit', 'विजिट', 'विज़िट', 'दुकान पर आएगा', 'shop pe aayega', 'shop par aayega'],
+  'hot lead': ['hot lead', 'hot', 'हॉट लीड', 'हॉट'],
+  'video call': ['video call', 'वीडियो कॉल', 'वीडियो'],
+  'order done': ['order done', 'order mila', 'order final', 'order confirm', 'ऑर्डर मिल', 'ऑर्डर फाइनल', 'ऑर्डर कन्फर्म', 'ऑर्डर डन'],
+  lost: ['lost', 'not interested', 'interested nahi', 'nahi chahiye', 'लॉस्ट', 'रुचि नहीं', 'नहीं चाहिए', 'इंटरेस्टेड नहीं'],
+  qualified: ['qualified', 'qualify', 'क्वालिफाइड', 'क्वालिफाई'],
+};
+
+/** Bole hue text se kaun sa stage bola gaya: { name, available } ya null.
+ *  allNames = config ke saare stage naam (lowercase), availableNames = is lead ke liye (role/flow ke hisaab se) jo allowed hain.
+ *  Stage ka exact label bhi pehchanta hai. available=false => stage hai to, par is lead par (jaise Sales ka stage LDR-wali lead par) nahi. */
+export function stageFromSpeech(text, allNames, availableNames) {
+  const low = ' ' + String(text || '').toLowerCase().replace(/[.,!?।"“”]+/g, ' ').replace(/\s+/g, ' ') + ' ';
+  let best = null;
+  const consider = (name, phrase) => {
+    const p = String(phrase).toLowerCase();
+    const pos = low.indexOf(/^[a-z0-9 -]+$/.test(p) ? ' ' + p + ' ' : p); // Roman: poora shabd; Hindi: seedha
+    if (pos >= 0 && (!best || pos < best.pos)) best = { name, pos };
+  };
+  [...new Set(allNames)].forEach((n) => {
+    consider(n, n);
+    (STAGE_ALIASES[n] || []).forEach((a) => consider(n, a));
+  });
+  if (!best) return null;
+  return { name: best.name, available: availableNames.includes(best.name) };
+}
+
 /** form-fields ke select/radio options jo bole hue text mein aaye — { label: value } (sirf pehla match har field ka) */
 export function matchFormAnswers(text, fields, splitList) {
   const t = ' ' + norm(text) + ' ';

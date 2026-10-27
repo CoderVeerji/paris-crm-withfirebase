@@ -3,7 +3,7 @@ import ListSelect from './ListSelect';
 import VoiceAssist from './VoiceAssist';
 import VoiceQuick from './VoiceQuick';
 import { fmtFollowup } from '../lib/todayCallbacks';
-import { parseFollowup, toLocalInput, matchFormAnswers } from '../lib/voiceParse';
+import { parseFollowup, toLocalInput, matchFormAnswers, stageFromSpeech } from '../lib/voiceParse';
 import { normalizeState } from '../lib/states';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useAuth } from '../auth';
@@ -169,18 +169,24 @@ export default function LeadSheet({ lead: leadIn, onClose, onSaved }) {
   // sab zaroori cheezein poori hon to 3 second ke countdown ke baad apne-aap save (beech mein "Rok"). Adhoora ho to bharke chhod deta hai.
   const saveRef = useRef(null);
   const [vc, setVc] = useState(null);        // { n } countdown chal raha hai
+  const [vNote, setVNote] = useState('');    // "bola hua stage is lead par available nahi" jaisi chetavni
   const [vTick, setVTick] = useState(0);
   const vForms = (cfg.forms || []).filter((f) => ['admin', 'md', 'tl'].includes(role) || f.role_edit === 'both' || f.role_edit === (isSalesFlow ? 'sales' : 'ldr'));
 
   function applyVoice(text) {
     const T = String(text || '').trim();
     if (!T) return;
-    const low = ' ' + T.toLowerCase().replace(/[^a-z0-9\u0900-\u097f]+/g, ' ') + ' ';
-    // stage ka naam bola ho to wahi (lambe naam pehle: "hot lead" ko "lead" se pehle)
-    const hit = [...roleStages].sort((a, b) => b.label.length - a.label.length)
-      .find((s) => low.includes(' ' + s.label.toLowerCase().replace(/[^a-z0-9\u0900-\u097f]+/g, ' ').trim() + ' '));
+    // stage: exact naam ya bolne ke tareeke ("फालो में डाल दो", "visit karega") — config ke saare stages mein se
+    const allNames = [...new Set([...(cfg.stages || []).map((s) => String(s.name || '').toLowerCase()), ...roleStages.map((s) => s.name)])].filter(Boolean);
+    const sp = stageFromSpeech(T, allNames, roleStages.map((s) => s.name));
+    const hit = sp && sp.available ? roleStages.find((s) => s.name === sp.name) : null;
     const target = hit || stageObj;
     if (hit && hit.name !== stage) setStage(hit.name);
+    // stage bola to hai par is lead (ya is role) ke liye available nahi — chup-chap ignore nahi, saaf bata do
+    if (sp && !sp.available) {
+      const lbl = (cfg.stages || []).find((s) => String(s.name).toLowerCase() === sp.name)?.name || sp.name;
+      setVNote(fill(t('vqStageNA'), { s: lbl, c: target?.label || stage }));
+    } else setVNote('');
     setRemark(T);
     if (target?.req) { const d = parseFollowup(T); if (d) setNextDt(toLocalInput(d)); }
     if (target?.form) { const m = matchFormAnswers(T, vForms, splitList); if (Object.keys(m).length) setAnswers((a) => ({ ...a, ...m })); }
@@ -195,7 +201,7 @@ export default function LeadSheet({ lead: leadIn, onClose, onSaved }) {
     if (isOrder && !(Number(amount) > 0)) probs.push(t('amountReq'));
     const missing = editableForms.find((f) => f.is_mandatory === 'Yes' && !String(answers[f.label] || '').trim());
     if (missing) probs.push(fill(t('fieldReq'), { f: missing.label }));
-    if (probs.length) { setVc(null); fail(`${t('vqFilled')} ${probs[0]}`); return; }
+    if (probs.length) { setVc(null); fail(`${t('vqFilled')} ${probs[0]}${vNote ? ' · ' + vNote : ''}`); return; }
     setErr(''); setVc({ n: 3 });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [vTick]);
@@ -319,6 +325,7 @@ export default function LeadSheet({ lead: leadIn, onClose, onSaved }) {
                 <div>
                   <b><i className="fas fa-bolt" /> {fill(t('vqSaving'), { n: vc.n })}</b>
                   <small>{stageObj?.label || stage}{needsDate && nextDt ? ` · ${fmtFollowup(new Date(nextDt))}` : ''} · “{remark.length > 70 ? remark.slice(0, 70) + '…' : remark}”</small>
+                  {vNote && <small className="vq-note"><i className="fas fa-circle-info" /> {vNote}</small>}
                 </div>
                 <button type="button" className="btn btn-danger" onClick={() => setVc(null)}>{t('vqCancel')}</button>
               </div>
