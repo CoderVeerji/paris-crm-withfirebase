@@ -10,7 +10,7 @@ import { toast } from '../toast';
 import { friendlyError } from '../lib/errmsg';
 import Sheet from '../components/Sheet';
 import { createUser, updateUser, sendReset, transferLeads, audit } from '../lib/admin';
-import { changeUserEmail, deleteUserAccount, setUserPassword } from '../lib/stats';
+import { changeUserEmail, deleteUserAccount, setUserPassword, setUserLoginDisabled } from '../lib/stats';
 
 // ⚠️ Admin "set password" tool ka BACKEND (functions adminTask 'user_password' + rules `user_secrets`)
 // abhi live project pe deploy NAHI hua (user ne live pe kuch na karne ko bola — preview aur live ka
@@ -196,6 +196,10 @@ function UserSheet({ user, allUsers, actor, t, onClose, onSaved }) {
         // pehle baaki fields save karo — taaki login-email badalna fail bhi ho jaye
         // (server permission missing) to naam/phone/role kam se kam save ho jaayein
         await updateUser(user.id, { full_name, phone, role, team: teamVal, status, attendance }, user, actor);
+        // inactive karne par Firebase login bhi band (aur wapas active par chalu) — fail ho to bhi data rules user ko rok rahe hain
+        if ((user.status || 'active') !== status && (status === 'inactive' || status === 'active')) {
+          try { await setUserLoginDisabled(user.id, status === 'inactive'); } catch (e3) { console.error(e3); toast(t('uLoginToggleFail'), 'err'); }
+        }
         const newEmail = email.trim().toLowerCase();
         const oldEmail = (user.email || '').toLowerCase();
         if (newEmail && newEmail !== oldEmail) {
@@ -322,7 +326,7 @@ function UserSheet({ user, allUsers, actor, t, onClose, onSaved }) {
           <div style={{ display: 'flex', gap: 8 }}>
             <Select className="form-control" value={transferTo} onChange={(e) => setTransferTo(e.target.value)}>
               <option value="">— {t('uTransferTo')} —</option>
-              {allUsers.filter((u) => u.id !== user.id && u.status === 'active').map((u) => (
+              {allUsers.filter((u) => u.id !== user.id && u.status === 'active' && u.role === user.role).map((u) => (
                 <option key={u.id} value={u.id}>{u.full_name} ({u.role})</option>
               ))}
             </Select>

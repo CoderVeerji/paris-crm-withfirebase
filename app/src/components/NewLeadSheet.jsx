@@ -1,5 +1,6 @@
 import Select from './Select';
 import ListSelect from './ListSelect';
+import VoiceAssist from './VoiceAssist';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { doc, getDoc } from 'firebase/firestore';
 import { db } from '../firebase';
@@ -357,7 +358,9 @@ export default function NewLeadSheet({ onClose, onCreated, onOpenExisting }) {
 
         <div className="form-group"><label>{t('remark')}</label>
           <textarea className="form-control" rows={2} value={f.remark} onChange={(e) => set('remark', e.target.value)}
-            placeholder={t('nlRemarkPh')} /></div>
+            placeholder={t('nlRemarkPh')} />
+          <VoiceAssist value={f.remark} onChange={(v) => set('remark', v)} needsDate={needsDate} nextDt={nextDt} onSetDate={setNextDt}
+            formFields={formFields} splitList={splitList} answers={answers} onSetAnswer={(l, v) => setAnswers((a) => ({ ...a, [l]: v }))} /></div>
 
         <button className="btn btn-primary btn-block" disabled={busy || (pCheck?.exists && !pCheck.existing.archived) || !lenOk}>
           {busy ? t('wait') : pCheck?.exists && pCheck.existing.archived ? t('nlReopenSubmit') : t('nlSubmit')}

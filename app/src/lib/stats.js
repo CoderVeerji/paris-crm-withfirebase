@@ -133,6 +133,7 @@ export const sendTestPush = (targetUid) => runAdminTask('test_push', { target_ui
 export const changeUserEmail = (uid, email) => runAdminTask('user_email', { target_uid: uid, new_email: email }, null, 30000);
 /** User ko permanently delete karo (Auth + doc). force=true -> leads assigned hote hue bhi delete. */
 export const setUserPassword = (uid, password) => runAdminTask('user_password', { target_uid: uid, new_password: password }, null, 30000);
+export const setUserLoginDisabled = (uid, disabled) => runAdminTask('user_status', { target_uid: uid, disabled }, null, 30000);
 export const deleteUserAccount =(uid, force = false) => runAdminTask('user_delete', { target_uid: uid, force }, null, 30000);
 
 /** per-user overdue followup counts */

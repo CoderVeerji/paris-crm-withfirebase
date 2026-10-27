@@ -4,7 +4,7 @@ import { useT, fill } from '../i18n';
 import { fmtDateTime } from '../lib/format';
 import { toast } from '../toast';
 import { friendlyError } from '../lib/errmsg';
-import { fetchRecycle, restoreLead } from '../lib/admin';
+import { fetchRecycle, restoreLead, RECYCLE_LIMIT } from '../lib/admin';
 
 export default function RecycleBin() {
   const { user } = useAuth();
@@ -29,6 +29,7 @@ export default function RecycleBin() {
   return (
     <div>
       <p style={{ fontSize: 12, color: 'var(--muted)', marginBottom: 12 }}>{t('recIntro')}</p>
+      {items.length >= RECYCLE_LIMIT && <div className="alert alert-info"><i className="fas fa-circle-info" /> {fill(t('recLimitNote'), { n: RECYCLE_LIMIT })}</div>}
       <div className="feed">
         {items.map((it) => (
           <div className="feed-row" key={it.id} style={{ cursor: 'default' }}>

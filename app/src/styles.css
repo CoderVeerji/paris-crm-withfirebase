@@ -1374,6 +1374,48 @@ table.mis-t th.mis-th-group { text-align: center; background: color-mix(in srgb,
 .ld-bad td { background: color-mix(in srgb, var(--danger) 9%, var(--card)); }
 .ld-pend { display: inline-block; min-width: 26px; padding: 2px 9px; border-radius: 999px; background: var(--danger); color: #fff; font-weight: 800; text-align: center; }
 .ld-ok { color: var(--success); font-weight: 700; }
+/* Aaj ke time-wale callbacks (components/TodayCallbacks.jsx) + card par highlight */
+.tcb { margin: 6px 0 10px; padding: 10px 12px; border-radius: var(--radius); background: color-mix(in srgb, var(--navy-accent) 8%, var(--card));
+  border: 1px solid color-mix(in srgb, var(--navy-accent) 30%, var(--line)); }
+.tcb-head { display: flex; justify-content: space-between; align-items: center; gap: 8px; font-size: 12px; color: var(--muted); margin-bottom: 8px; }
+.tcb-head b { color: var(--ink); font-size: 13px; }
+.tcb-head b i { color: var(--navy-accent); margin-right: 4px; }
+.tcb-row { display: flex; gap: 8px; overflow-x: auto; padding: 9px 0 2px; -webkit-overflow-scrolling: touch; scrollbar-width: thin; }
+.tcb-chip { flex: 0 0 auto; display: flex; flex-direction: column; align-items: flex-start; gap: 1px; min-width: 112px; max-width: 170px; padding: 7px 11px; border-radius: 10px;
+  background: var(--card); border: 1.5px solid var(--line-2); color: var(--ink); text-align: left; cursor: pointer; position: relative; }
+.tcb-time { font-size: 12px; font-weight: 800; color: var(--navy-accent); white-space: nowrap; }
+.tcb-time i { font-size: 11px; }
+.tcb-name { font-size: 12.5px; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 100%; }
+.tcb-chip.next { border-color: var(--navy-accent); box-shadow: 0 0 0 2px color-mix(in srgb, var(--navy-accent) 25%, transparent); }
+.tcb-flag { position: absolute; top: -7px; right: 8px; font-style: normal; font-size: 9.5px; font-weight: 800; letter-spacing: 0.05em; text-transform: uppercase;
+  padding: 1px 6px; border-radius: 999px; background: var(--navy-accent); color: #fff; }
+.tcb-chip.past { border-color: color-mix(in srgb, var(--danger) 55%, var(--line)); background: color-mix(in srgb, var(--danger) 7%, var(--card)); }
+.tcb-chip.past .tcb-time { color: var(--danger); }
+.tcb-more { align-self: center; font-size: 12px; font-weight: 700; color: var(--muted); padding: 0 4px; }
+.fu-today { display: inline-flex; align-items: center; gap: 5px; padding: 2px 8px; border-radius: 999px; font-weight: 800; font-size: 11.5px;
+  background: color-mix(in srgb, var(--navy-accent) 14%, var(--card)); color: var(--navy-accent); }
+.fu-today.over { background: color-mix(in srgb, var(--danger) 14%, var(--card)); color: var(--danger); }
+/* Voice (components/VoiceAssist.jsx) */
+.va { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-top: 7px; }
+.va-mic { display: inline-flex; align-items: center; gap: 7px; padding: 7px 13px; border-radius: 999px; font-size: 12.5px; font-weight: 700;
+  background: var(--card); border: 1.5px solid var(--line-2); color: var(--ink); cursor: pointer; }
+.va-mic i { color: var(--navy-accent); }
+.va-mic.on { background: var(--danger); border-color: var(--danger); color: #fff; animation: va-pulse 1.2s ease-in-out infinite; }
+.va-mic.on i { color: #fff; }
+@keyframes va-pulse { 0%, 100% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--danger) 45%, transparent); } 50% { box-shadow: 0 0 0 7px transparent; } }
+@media (prefers-reduced-motion: reduce) { .va-mic.on { animation: none; } }
+.va-lang { padding: 6px 10px; border-radius: 999px; font-size: 12px; font-weight: 800; background: var(--hover); border: 1px solid var(--line-2); color: var(--muted); cursor: pointer; }
+.va-compact { margin: 0; flex-shrink: 0; }
+.va-compact .va-mic { width: 42px; height: 42px; padding: 0; justify-content: center; border-radius: 12px; }
+.hp-chat-input .va-compact { align-self: center; }
+.va-sugg { flex-basis: 100%; display: flex; flex-wrap: wrap; align-items: center; gap: 7px; padding: 8px 10px; border-radius: 10px;
+  background: color-mix(in srgb, var(--navy-accent) 8%, var(--card)); border: 1px dashed color-mix(in srgb, var(--navy-accent) 40%, var(--line)); }
+.va-sugg small { flex-basis: 100%; color: var(--muted); font-weight: 700; font-size: 11px; text-transform: uppercase; letter-spacing: 0.04em; }
+.va-chip { display: inline-flex; align-items: center; gap: 6px; padding: 6px 10px; border-radius: 9px; font-size: 12.5px; background: var(--card);
+  border: 1.5px solid var(--navy-accent); color: var(--ink); cursor: pointer; text-align: left; }
+.va-chip i { color: var(--navy-accent); }
+.va-chip em { font-style: normal; font-weight: 800; font-size: 11px; padding: 1px 7px; border-radius: 999px; background: var(--navy-accent); color: #fff; }
+.lead-card.has-today { box-shadow: 0 0 0 1.5px color-mix(in srgb, var(--navy-accent) 40%, transparent); }
 .ld-pct { color: var(--danger); font-weight: 800; }
 .ss-btn { display: flex; align-items: center; justify-content: space-between; gap: 8px; text-align: left; cursor: pointer; font: inherit; }
 .ss-btn .ss-val { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }

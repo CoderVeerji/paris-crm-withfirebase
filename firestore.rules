@@ -25,6 +25,16 @@ service cloud.firestore {
               && request.resource.data.get('urgent_at', null) != resource.data.get('urgent_at', null))
           || (resource.data.get('archived', false) == true && request.resource.data.get('archived', true) == false);
     }
+    // archived lead ko wapas kholna (dobara enquiry): archived true -> false
+    function isReopenArchived() {
+      return resource.data.get('archived', false) == true && request.resource.data.get('archived', true) == false;
+    }
+    // is lead ko ye (ldr/sales) user dekh sakta hai? — activity/orders ki read rule isi par tiki hai (leads ki read rule jaisa hi)
+    function canReadLead(leadId) {
+      let l = get(/databases/$(database)/documents/leads/$(leadId)).data;
+      return (role() == 'ldr' && (l.get('ldr_uid', '') == request.auth.uid || l.get('status', '') in ['fresh', 'new']))
+          || (role() == 'sales' && l.get('sales_uid', '') == request.auth.uid);
+    }
     function isOversight() { return isProvisioned() && role() in ['admin', 'md', 'tl']; }
 
     match /users/{uid} {
@@ -80,8 +90,8 @@ service cloud.firestore {
                  'archived', 'archived_at', 'reinq_after_archive', 'reinq_after_archive_at', 'reinq_after_archive_count',
                  'status', 'sales_status', 'outcome', 'closed_at', 'sales_open',
                  'ldr_uid', 'ldr_name', 'sales_uid', 'sales_name', 'assigned_sales_at']))
-        ) && !(request.resource.data.diff(resource.data).affectedKeys().hasAny(['status']) && request.resource.data.status == '')
-          && !(request.resource.data.diff(resource.data).affectedKeys().hasAny(['sales_status']) && request.resource.data.sales_status == '')
+        ) && !(request.resource.data.diff(resource.data).affectedKeys().hasAny(['status']) && request.resource.data.status == '' && !isReopenArchived())
+          && !(request.resource.data.diff(resource.data).affectedKeys().hasAny(['sales_status']) && request.resource.data.sales_status == '' && !isReopenArchived())
         // HAND-OFF LOCK: lead 'qualified' hone ke baad wo Sales ki hai — LDR uska status nahi badal sakta, aur Sales kabhi `status`
         // nahi likhta (LDR ka field). Do jaayaz raaste khule: re-inquiry (urgent_at badla) aur archived lead ko dobara kholna.
         && !(isProvisioned() && role() in ['ldr', 'sales']
@@ -92,19 +102,31 @@ service cloud.firestore {
     }
 
     match /phone_index/{digits} {
-      allow read:  if isProvisioned();
-      allow write: if isProvisioned();   // lead create / phone-edit ke saath sync
+      // get: duplicate-check (number pata ho tabhi). list (poori directory enumerate) sirf admin/md/tl — Tally match, bulk delete.
+      allow get:    if isProvisioned();
+      allow list:   if isOversight();
+      // sirf ye fields (owner_name nahi — privacy); purane docs se owner_name hatana (diff mein allowed)
+      allow create: if isProvisioned() && request.resource.data.keys().hasOnly(['lead_id', 'name', 'phone', 'stage', 'source', 'updated_at']);
+      allow update: if isProvisioned() && request.resource.data.diff(resource.data).affectedKeys()
+                         .hasOnly(['lead_id', 'name', 'phone', 'stage', 'source', 'updated_at', 'owner_name']);
+      allow delete: if isProvisioned();
     }
 
     match /activity/{id} {
-      allow read:   if isProvisioned();
-      allow create: if isProvisioned();
+      // admin/md/tl sab; baaki sirf apni kaarwai ya apni (dekh-sakne-wali) lead ki history — poori activity enumerate nahi
+      allow read:   if isOversight()
+                    || (isProvisioned() && (resource.data.get('uid', '') == request.auth.uid
+                        || (resource.data.get('lead_id', '') != '' && canReadLead(resource.data.lead_id))));
+      allow create: if isProvisioned() && request.resource.data.uid == request.auth.uid; // kisi aur ke naam se activity nahi likh sakte
       allow update, delete: if false;
     }
 
     match /orders/{id} {
-      allow read:  if isProvisioned();
-      allow write: if isAdmin() || (isProvisioned() && role() == 'sales');
+      allow read:   if isOversight()
+                    || (isProvisioned() && (resource.data.get('sales_uid', '') == request.auth.uid
+                        || (resource.data.get('lead_id', '') != '' && canReadLead(resource.data.lead_id))));
+      allow create: if isAdmin() || (isProvisioned() && role() == 'sales' && request.resource.data.sales_uid == request.auth.uid);
+      allow update, delete: if isAdmin();   // duplicate-merge (admin) lead_id badalta hai
     }
 
     match /stats_daily/{id}    { allow read: if isOversight(); allow write: if false; }
@@ -169,8 +191,13 @@ service cloud.firestore {
     }
 
     match /meta/{id} {
-      allow read:  if isProvisioned();
-      allow write: if isProvisioned();   // lead-id counter — koi bhi user naya lead bana sakta hai
+      // sirf lead-id counter (naya lead banate waqt sab user) — baaki meta docs (notify_state...) client ke liye band, function (Admin SDK) apna kaam karta hai
+      allow read:   if isAdmin() || (isProvisioned() && id == 'counters');
+      allow create: if isProvisioned() && id == 'counters' && request.resource.data.keys().hasOnly(['leads']);
+      allow update: if isProvisioned() && id == 'counters' && request.resource.data.keys().hasOnly(['leads'])
+                    && request.resource.data.leads is int
+                    && request.resource.data.leads > resource.data.get('leads', 0)
+                    && request.resource.data.leads <= resource.data.get('leads', 0) + 20000; // sirf aage badhe (bulk import tak)
     }
 
     // Help — Ask-AI. User apna sawaal likhta hai (status:'pending'), function jawab bharta hai (Admin SDK).

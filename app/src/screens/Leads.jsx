@@ -18,6 +18,8 @@ import Pager from '../components/Pager';
 import LeadsSummary from '../components/LeadsSummary';
 import LeadSheet from '../components/LeadSheet';
 import NewLeadSheet from '../components/NewLeadSheet';
+import TodayCallbacks from '../components/TodayCallbacks';
+import { isToday, hasTime, fmtTime } from '../lib/todayCallbacks';
 import Sheet from '../components/Sheet';
 import WaIcon from '../components/WaIcon';
 
@@ -263,6 +265,9 @@ export default function Leads({ initialView = 'all' }) {
 
   return (
     <div onTouchStart={selMode ? undefined : onTouchStart} onTouchMove={selMode ? undefined : onTouchMove} onTouchEnd={selMode ? undefined : onTouchEnd}>
+      {(role === 'ldr' || role === 'sales') && view !== 'fresh' && (
+        <TodayCallbacks role={role} uid={user.id} refreshKey={openLead ? 'o' : 'c'} onOpen={(l) => setOpenLead(l)} />
+      )}
       <div className="filterbar">
         <div className="searchrow">
           <div className="searchwrap">
@@ -505,10 +510,16 @@ export default function Leads({ initialView = 'all' }) {
 
 
       {bulkSheet === 'assign' && (
-        <BulkAssignSheet cfg={cfg} busy={bulkBusy} onClose={() => setBulkSheet(null)}
-          onGo={({ ldr_uid, sales_uid }) => runBulk(
-            () => bulkAssign(ids, { ldr_uid, sales_uid }, { ldr: userName(cfg, ldr_uid), sales: userName(cfg, sales_uid) }, actor),
-            fill(t('blkAssigned'), { n: ids.length }))} />
+        <BulkAssignSheet cfg={cfg} busy={bulkBusy} leads={selectedLeads()} onClose={() => setBulkSheet(null)}
+          onGo={({ ldr_uid, sales_uid, onlyQualified }) => {
+            // Sales ko sirf QUALIFIED leads di ja sakti hain (baaki Sales ki list mein aati hi nahi) — warning ke baad user ki choice ke hisaab se
+            const qIds = selectedLeads().filter((l) => String(l.status || '').toLowerCase() === 'qualified').map((l) => l.id);
+            const salesIds = sales_uid ? (onlyQualified ? qIds : ids) : [];
+            runBulk(async () => {
+              if (ldr_uid) await bulkAssign(ids, { ldr_uid, sales_uid: null }, { ldr: userName(cfg, ldr_uid), sales: '' }, actor);
+              if (sales_uid && salesIds.length) await bulkAssign(salesIds, { ldr_uid: null, sales_uid }, { ldr: '', sales: userName(cfg, sales_uid) }, actor);
+            }, fill(t('blkAssigned'), { n: sales_uid && !ldr_uid ? salesIds.length : ids.length }));
+          }} />
       )}
     </div>
   );
@@ -530,31 +541,45 @@ function StatusCards({ data, active, t, onPick }) {
           className={`stat-card clickable ${SC_TONE[c.key] || ''} ${isOn(c.filter) ? 'on' : ''}`}
           onClick={() => onPick(c.filter)}>
           <div className="val">{(c.count ?? 0).toLocaleString('en-IN')}</div>
-          <div className="label">{fmtStatus(c.key === 'callback' ? 'call back' : c.key === 'lost' ? 'lost' : c.key)}</div>
+          <div className="label">{c.key === 'qualified' ? t('lfQualifiedAll') : fmtStatus(c.key === 'callback' ? 'call back' : c.key === 'lost' ? 'lost' : c.key)}</div>
         </button>
       ))}
     </div>
   );
 }
 
-function BulkAssignSheet({ cfg, busy, onClose, onGo }) {
+function BulkAssignSheet({ cfg, busy, leads = [], onClose, onGo }) {
   const { t } = useT();
   const [ldr_uid, setLdr] = useState('');
   const [sales_uid, setSales] = useState('');
+  const [onlyQualified, setOnlyQualified] = useState(true);
+  const nonQ = leads.filter((l) => String(l.status || '').toLowerCase() !== 'qualified').length;
+  const warn = !!sales_uid && nonQ > 0;
+  const allNonQ = warn && nonQ === leads.length;
   return (
     <Sheet title={t('assignSales')} onClose={onClose}>
-      <div className="form-group"><label>LDR</label>
+      <div className="form-group"><label>{t('blkLdrLbl')}</label>
         <Select className="form-control" value={ldr_uid} onChange={(e) => setLdr(e.target.value)}>
-          <option value="">— koi change nahi —</option>
+          <option value="">{t('blkNoChange')}</option>
           {ldrUsers(cfg).map((u) => <option key={u.id} value={u.id}>{u.full_name}</option>)}
         </Select></div>
-      <div className="form-group"><label>Sales</label>
+      <div className="form-group"><label>{t('blkSalesLbl')}</label>
         <Select className="form-control" value={sales_uid} onChange={(e) => setSales(e.target.value)}>
-          <option value="">— koi change nahi —</option>
+          <option value="">{t('blkNoChange')}</option>
           {salesUsers(cfg).map((u) => <option key={u.id} value={u.id}>{u.full_name}</option>)}
         </Select></div>
-      <button className="btn btn-primary btn-block" disabled={busy || (!ldr_uid && !sales_uid)}
-        onClick={() => onGo({ ldr_uid: ldr_uid || null, sales_uid: sales_uid || null })}>
+      {warn && (
+        <div className="alert alert-warn">
+          <i className="fas fa-triangle-exclamation" /> {fill(t('blkAssignWarn'), { n: nonQ, total: leads.length })}
+          {!allNonQ && (
+            <label style={{ display: 'flex', gap: 8, alignItems: 'center', marginTop: 8, fontWeight: 600 }}>
+              <input type="checkbox" checked={onlyQualified} onChange={(e) => setOnlyQualified(e.target.checked)} /> {t('blkAssignOnlyQ')}
+            </label>
+          )}
+        </div>
+      )}
+      <button className="btn btn-primary btn-block" disabled={busy || (!ldr_uid && !sales_uid) || (allNonQ && !ldr_uid)}
+        onClick={() => onGo({ ldr_uid: ldr_uid || null, sales_uid: allNonQ ? null : (sales_uid || null), onlyQualified: allNonQ ? true : onlyQualified })}>
         {busy ? t('wait') : t('assignSales')}
       </button>
     </Sheet>
@@ -579,7 +604,7 @@ export function LeadCard({ lead, t, onOpen, selMode, selected, statusMode = 'eff
   const tier = lead.tier || computeScore(lead).tier;
 
   return (
-    <div className={`lead-card ${strip} ${selMode ? 'selecting' : ''} ${selected ? 'sel' : ''}`} onClick={onOpen}>
+    <div className={`lead-card ${strip} ${selMode ? 'selecting' : ''} ${selected ? 'sel' : ''} ${fu && isToday(fu) ? 'has-today' : ''}`} onClick={onOpen}>
       {selMode && (
         <span className={`lc-check ${selected ? 'on' : ''}`}>{selected && <i className="fas fa-check" />}</span>
       )}
@@ -600,9 +625,11 @@ export function LeadCard({ lead, t, onOpen, selMode, selected, statusMode = 'eff
       <div className="meta">
         {who && <span><i className="fas fa-user" /> {who}</span>}
         {lead.order_count > 0 && <span><i className="fas fa-sack-dollar" /> {lead.order_count} · {fmtMoney(lead.total_revenue)}</span>}
-        {fu
-          ? <span className={isPast(fu) ? 'over' : ''}><i className="fas fa-clock" /> {fmtDate(fu)}</span>
-          : <span><i className="fas fa-calendar" /> {fmtDate(lead.created_at)}</span>}
+        {fu && isToday(fu)
+          ? <span className={`fu-today ${isPast(fu) ? 'over' : ''}`}><i className="fas fa-bell" /> {t('tcToday')}{hasTime(fu) ? ` · ${fmtTime(fu)}` : ''}</span>
+          : fu
+            ? <span className={isPast(fu) ? 'over' : ''}><i className="fas fa-clock" /> {fmtDate(fu)}</span>
+            : <span><i className="fas fa-calendar" /> {fmtDate(lead.created_at)}</span>}
       </div>
 
       {!selMode && (
@@ -633,7 +660,9 @@ export function LeadRow({ lead, t, onOpen, statusMode = 'effective' }) {
         <div className="lrow-sub">
           {lead.phone || lead.phone_raw}
           {who && <> · <i className="fas fa-user" /> {who}</>}
-          {fu && <> · <span className={isPast(fu) ? 'over' : ''}><i className="fas fa-clock" /> {fmtDate(fu)}</span></>}
+          {fu && isToday(fu)
+            ? <> · <span className={`fu-today ${isPast(fu) ? 'over' : ''}`}><i className="fas fa-bell" /> {t('tcToday')}{hasTime(fu) ? ` · ${fmtTime(fu)}` : ''}</span></>
+            : fu && <> · <span className={isPast(fu) ? 'over' : ''}><i className="fas fa-clock" /> {fmtDate(fu)}</span></>}
         </div>
       </div>
       {dialNum && (

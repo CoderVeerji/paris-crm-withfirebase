@@ -67,6 +67,7 @@ const NOTIF_STR = {
     reinquiry: ['🔁 Old lead came back!', (n) => `${n} re-inquired — call now or they'll go elsewhere. You can also hand them to someone else from the lead's page.`],
     first_contact: ['⏰ Still not called', (n) => `${n} is still waiting — call now before the lead goes cold 📉`],
     first_contact_sales: ['🔥 Work this qualified lead', (n) => `${n} — LDR qualified it and it's waiting on you. Call now! 💪`],
+    repeat_order: ['🔁 Repeat order time', (n) => `${n} — the repeat-order follow-up you set is due. Call now and book the next order 💼`],
     followup_due: ['⏳ Today\'s follow-up', (n) => `You set a follow-up on ${n} for today — please connect now and keep your word ⭐`],
     assign_fail: ['⚠️ Sales not assigned', (n) => `${n} is qualified but no salesperson is active/present. Assign one yourself.`],
     sla_fresh_ldr: ['📤 Fresh lead back in pool', (n) => `${n} — not touched in time, returned to the pool`],
@@ -95,6 +96,7 @@ const NOTIF_STR = {
     reinquiry: ['🔁 पुरानी लीड वापस आई!', (n) => `${n} ने दोबारा एन्क्वायरी की — अभी बात करो वरना कहीं और चली जाएगी। या लीड की पेज से किसी और को दे दो।`],
     first_contact: ['⏰ अब तक कॉल नहीं', (n) => `${n} अब भी इंतज़ार में हैं — तुरंत कॉल करो वरना लीड ठंडी हो जाएगी 📉`],
     first_contact_sales: ['🔥 इस क्वालिफाइड लीड पर काम करो', (n) => `${n} — LDR ने क्वालिफाई किया, आपका इंतज़ार है। अभी कॉल! 💪`],
+    repeat_order: ['🔁 रिपीट ऑर्डर का समय', (n) => `${n} — आपने जो रिपीट-ऑर्डर फॉलोअप डाला था उसका समय हो गया। अभी कॉल करो और अगला ऑर्डर पक्का करो 💼`],
     followup_due: ['⏳ आज का फॉलोअप', (n) => `आपने ${n} को आज के लिए फॉलोअप में डाला था — अभी कनेक्ट करो, वादा निभाओ ⭐`],
     assign_fail: ['⚠️ सेल्स असाइन नहीं हुआ', (n) => `${n} क्वालिफाइड है पर कोई सेल्सपर्सन एक्टिव/प्रेज़ेंट नहीं। खुद असाइन करो।`],
     sla_fresh_ldr: ['📤 फ्रेश लीड पूल में वापस', (n) => `${n} — समय पर टच नहीं हुआ, पूल में वापस`],
@@ -123,6 +125,7 @@ const NOTIF_STR = {
     reinquiry: ['🔁 Purani lead wapas aayi!', (n) => `${n} ne dobara enquiry ki hai — abhi baat karo warna ye kahi aur chali jayegi. Ya lead ki page se kisi aur ko de do.`],
     first_contact: ['⏰ Abhi tak call nahi', (n) => `${n} abhi tak wait kar rahe hain — turant call karo warna lead thandi ho jayegi 📉`],
     first_contact_sales: ['🔥 Is qualified lead pe kaam karo', (n) => `${n} — LDR ne qualify kiya, aapka intezaar hai. Abhi call! 💪`],
+    repeat_order: ['🔁 Repeat order ka time', (n) => `${n} — aapne repeat-order ka jo followup dala tha uska time ho gaya. Abhi call karo aur agla order pakka karo 💼`],
     followup_due: ['⏳ Aaj ka followup', (n) => `Aapne ${n} ko aaj ke liye followup me daala tha — abhi connect karo, waada nibhao ⭐`],
     assign_fail: ['⚠️ Sales assign nahi hua', (n) => `${n} qualified hai par koi sales active/present nahi. Khud assign karo.`],
     sla_fresh_ldr: ['📤 Fresh lead pool me wapas', (n) => `${n} — time pe touch nahi hua, pool me wapas daal di`],
@@ -184,6 +187,29 @@ async function notify(toUid, type, key, nameArg, leadId) {
   } catch (e) {
     console.error(`notify[${toUid}]: fcm push threw (non-fatal)`, e.code || '', e.message || e);
   }
+}
+
+/** Followup reminder (slaScan rule 4): due se ~10-15 min PEHLE, ek baar. Do tarah ki leads:
+ *   - chalti leads (outcome '')         -> 'followup_due'
+ *   - Order Done / customer (outcome 'customer') ki REPEAT-ORDER date -> 'repeat_order' (pehle ye leads query hi nahi hoti thi)
+ *  Window [now-5m, now+18m]; one-shot flag `sla_followup_due_alerted` (logLeadAction naya next_followup set karne par reset). Returns kitne notify hue. */
+async function followupDueScan(now) {
+  const dueFloor = TS.fromMillis(now - 5 * 60000);
+  const dueCeil = TS.fromMillis(now + 18 * 60000);
+  let acted = 0;
+  for (const [outcome, key] of [['', 'followup_due'], ['customer', 'repeat_order']]) {
+    const snap = await db.collection('leads')
+      .where('outcome', '==', outcome)
+      .where('next_followup', '>', dueFloor).where('next_followup', '<', dueCeil).limit(40).get();
+    for (const d of snap.docs) {
+      const l = d.data();
+      if (l.sla_followup_due_alerted || l.archived) continue;
+      await d.ref.update({ sla_followup_due_alerted: true });
+      await notify(l.sales_uid || l.ldr_uid, 'followup', key, l.name || d.id, d.id);
+      acted++;
+    }
+  }
+  return acted;
 }
 
 /** parse "30m" | "2h" | "1d" -> ms (0/blank -> 0 = rule off) */
@@ -997,6 +1023,15 @@ exports.adminTask = onDocumentWritten('admin_tasks/{taskId}', async (event) => {
       await db.doc('user_secrets/' + uid).set({ password: pw, set_at: FV.serverTimestamp() }, { merge: true });
       result = { uid };
     }
+    else if (id === 'user_status') {
+      // admin ne user ko inactive/active kiya — Firebase Auth login bhi band/chalu (rules sirf DATA rokte the, login ho jata tha)
+      const uid = String(after.target_uid || '');
+      if (!uid) throw new Error('target_uid chahiye');
+      const disabled = after.disabled === true;
+      await admin.auth().updateUser(uid, { disabled });
+      if (disabled) await admin.auth().revokeRefreshTokens(uid); // chalu session bhi jaldi kate
+      result = { uid, disabled };
+    }
     else if (id === 'user_delete') {
       const uid = String(after.target_uid || '');
       if (!uid) throw new Error('target_uid chahiye');
@@ -1203,20 +1238,7 @@ exports.slaScan = onSchedule({ schedule: 'every 15 minutes', timeZone: 'Asia/Kol
   // 4. FOLLOWUP reminder — DUE se ~10-15 min PEHLE (ek baar). Window: [now-5m, now+18m] taaki
   //    15-min scan-gap cover ho aur banda ~10 min pehle heads-up paaye. One-shot flag —
   //    `logLeadAction` naya next_followup set hone par isko reset kar deta hai (dobara arm).
-  await rule('followupDue', async () => {
-    const dueFloor = TS.fromMillis(now - 5 * 60000);
-    const dueCeil = TS.fromMillis(now + 18 * 60000);
-    const snap = await db.collection('leads')
-      .where('outcome', '==', '')
-      .where('next_followup', '>', dueFloor).where('next_followup', '<', dueCeil).limit(40).get();
-    for (const d of snap.docs) {
-      const l = d.data();
-      if (l.sla_followup_due_alerted) continue;
-      await d.ref.update({ sla_followup_due_alerted: true });
-      await notify(l.sales_uid || l.ldr_uid, 'followup', 'followup_due', l.name || d.id, d.id);
-      acted++;
-    }
-  });
+  await rule('followupDue', async () => { acted += await followupDueScan(now); });
 
   // 5. FOLLOWUP overdue escalation — sirf jo pichhle 3 din me SLA cross kiya (purana
   //    backlog data-cleanup ka mudda hai, uspe spam nahi). Manager ko per-lead NAHI —

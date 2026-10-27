@@ -211,6 +211,15 @@ export async function restoreLead(recycleId, actor) {
   const snap = await getDoc(doc(db, 'recycle', recycleId));
   if (!snap.exists()) throw new Error('not-found');
   const { data } = snap.data();
+  const { id: leadId0 } = data;
+  // restore se pehle: ye phone ab kisi AUR (zinda) lead ke paas to nahi? — warna do leads ek number par ho jaati
+  if (data.phone_digits) {
+    const ix = await getDoc(doc(db, 'phone_index', data.phone_digits));
+    if (ix.exists() && ix.data().lead_id && ix.data().lead_id !== leadId0) {
+      const other = await getDoc(doc(db, 'leads', ix.data().lead_id));
+      if (other.exists()) throw new Error('phone-in-use');
+    }
+  }
   const b = writeBatch(db);
   const { id, ...rest } = data;
   b.set(doc(db, 'leads', id), { ...rest, updated_at: serverTimestamp(), restored_at: serverTimestamp() });
@@ -227,8 +236,9 @@ export async function restoreLead(recycleId, actor) {
   await audit(actor, 'lead.restore', data.name || `#${id}`, [], { note: 'restored from recycle bin' });
 }
 
+export const RECYCLE_LIMIT = 100;
 export async function fetchRecycle() {
-  const snap = await getDocs(query(collection(db, 'recycle'), orderBy('deleted_at', 'desc'), limit(100)));
+  const snap = await getDocs(query(collection(db, 'recycle'), orderBy('deleted_at', 'desc'), limit(RECYCLE_LIMIT)));
   return snap.docs.map((d) => ({ id: d.id, ...d.data() }));
 }
 
@@ -279,7 +289,7 @@ export async function bulkArchive(leadIds, archived, actor) {
 export async function bulkAssign(leadIds, { ldr_uid, sales_uid }, names, actor) {
   const patch = { updated_at: serverTimestamp() };
   if (ldr_uid) { patch.ldr_uid = ldr_uid; patch.ldr_name = names.ldr || ''; }
-  if (sales_uid) { patch.sales_uid = sales_uid; patch.sales_name = names.sales || ''; }
+  if (sales_uid) { patch.sales_uid = sales_uid; patch.sales_name = names.sales || ''; patch.assigned_sales_at = serverTimestamp(); }
   for (let i = 0; i < leadIds.length; i += 400) {
     const b = writeBatch(db);
     leadIds.slice(i, i + 400).forEach((id) => b.update(doc(db, 'leads', id), patch));

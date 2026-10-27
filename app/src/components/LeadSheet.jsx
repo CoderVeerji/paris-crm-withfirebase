@@ -1,5 +1,6 @@
 import Select from './Select';
 import ListSelect from './ListSelect';
+import VoiceAssist from './VoiceAssist';
 import { normalizeState } from '../lib/states';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useAuth } from '../auth';
@@ -311,6 +312,8 @@ export default function LeadSheet({ lead: leadIn, onClose, onSaved }) {
               <label>{t('remark')} *</label>
               <textarea className="form-control" rows={3} required value={remark} onChange={(e) => setRemark(e.target.value)}
                 placeholder={t('remarkPlaceholder')} />
+              <VoiceAssist value={remark} onChange={setRemark} needsDate={needsDate} nextDt={nextDt} onSetDate={setNextDt}
+                formFields={editableForms} splitList={splitList} answers={answers} onSetAnswer={(l, v) => setAnswers((a) => ({ ...a, [l]: v }))} />
             </div>
 
             <button className="btn btn-primary btn-block" disabled={saving}>

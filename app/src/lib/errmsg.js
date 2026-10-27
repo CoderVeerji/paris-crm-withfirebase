@@ -13,6 +13,8 @@ const MAP = {
   'auth/too-many-requests': 'eTooMany',
   'bad-phone': 'nlBadPhone',
   'dup-phone': 'nlDupTitle',
+  'phone-in-use': 'recPhoneInUse',
+  'auth/user-disabled': 'eLoginDisabled',
   'remark-required': 'remarkReq',
   'stage-required': 'stageReq',
   'vapid-key-missing': 'pushNotConfigured',

@@ -1,3 +1,4 @@
+import VoiceAssist from '../components/VoiceAssist';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useAuth } from '../auth';
 import { useConfig } from '../config';
@@ -195,6 +196,7 @@ export default function Help() {
                 <form className="hp-chat-input" onSubmit={(e) => { e.preventDefault(); send(); }}>
                   <input className="form-control" placeholder={t('hpAskPh')} value={input}
                     onChange={(e) => setInput(e.target.value)} disabled={asking} />
+                  <VoiceAssist compact value={input} onChange={setInput} />
                   <button type="submit" className="btn btn-primary" disabled={asking || !input.trim()} aria-label="send">
                     <i className={`fas ${asking ? 'fa-spinner fa-spin' : 'fa-paper-plane'}`} />
                   </button>

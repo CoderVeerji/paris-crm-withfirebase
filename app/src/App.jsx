@@ -236,7 +236,7 @@ export default function App() {
             ? <li key={`s${i}`} className="sb-sec" role="presentation">{t(m.sec)}</li>
             : (
               <li key={m.key}>
-                <button className={activeNav === m.key ? 'active' : ''} onClick={() => setNav(m.key)}>
+                <button className={activeNav === m.key ? 'active' : ''} onClick={() => { setNav(m.key); setMenuOpen(false); }}>
                   <i className={`fas ${m.icon}`} /> {t(m.tKey)}
                 </button>
               </li>
