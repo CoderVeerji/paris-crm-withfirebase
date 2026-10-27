@@ -8,6 +8,8 @@ import LeadSheet from '../components/LeadSheet';
 import NewLeadSheet from '../components/NewLeadSheet';
 import LeadsSummary from '../components/LeadsSummary';
 import { LeadCard } from './Leads';
+import TodayCallbacks from '../components/TodayCallbacks';
+import { isToday } from '../lib/todayCallbacks';
 
 const PER = 18;
 const MODES = [
@@ -50,7 +52,11 @@ export default function Followups({ kind }) {
   // status cards — summary card select hone par usi subset ke counts (card == list, hamesha)
   const scopedRows = useMemo(() => {
     if (!data) return [];
-    return pick ? data.rows.filter((l) => pick.ids.has(l.id)) : data.rows;
+    const base = pick ? data.rows.filter((l) => pick.ids.has(l.id)) : data.rows;
+    // AAJ ka kaam sabse upar (time ke hisaab se), phir baaki jaise the
+    const ms = (l) => (l.next_followup?.toMillis ? l.next_followup.toMillis() : 0);
+    const today = base.filter((l) => l.next_followup && isToday(l.next_followup)).sort((a, b) => ms(a) - ms(b));
+    return today.length ? [...today, ...base.filter((l) => !(l.next_followup && isToday(l.next_followup)))] : base;
   }, [data, pick]);
   const statusRows = useMemo(() => {
     const by = {};
@@ -83,6 +89,7 @@ export default function Followups({ kind }) {
 
   return (
     <div>
+      {(role === 'ldr' || role === 'sales') && <TodayCallbacks role={role} uid={user.id} refreshKey={openLead ? 'o' : 'c'} onOpen={(l) => setOpenLead(l)} />}
       <div className="fu-head">
         <p className="fu-desc">{t(kind === 'sales' ? 'fuSalesDesc' : 'fuLdrDesc')}</p>
         <div className="fu-bar">

@@ -9,6 +9,12 @@ const toD = (ts) => (ts && ts.toDate ? ts.toDate() : ts ? new Date(ts) : null);
 export const isToday = (ts) => { const d = toD(ts); return !!d && d.toDateString() === new Date().toDateString(); };
 /** date ke saath time bhi daala gaya? (00:00 = sirf date) */
 export const hasTime = (ts) => { const d = toD(ts); return !!d && (d.getHours() !== 0 || d.getMinutes() !== 0); };
+/** next follow-up: date + (agar time daala gaya ho to) time — "25 Oct 2026 · 4:00 PM" */
+export const fmtFollowup = (ts) => {
+  const d = toD(ts); if (!d) return '—';
+  const date = d.toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' });
+  return hasTime(ts) ? `${date} · ${d.toLocaleTimeString('en-IN', { hour: 'numeric', minute: '2-digit', hour12: true })}` : date;
+};
 export const fmtTime = (ts) => { const d = toD(ts); return d ? d.toLocaleTimeString('en-IN', { hour: 'numeric', minute: '2-digit', hour12: true }) : ''; };
 
 /** @returns {Promise<Array<{ id, name, at: Date, hasTime, past, stage }>>} sorted by time */

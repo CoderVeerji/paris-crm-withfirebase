@@ -2,6 +2,7 @@ import { usePagedList } from '../lib/usePagedList';
 import Pager from './Pager';
 import { fetchDashLeadsPage } from '../lib/dashboardLeads';
 import { fmtStatus, fmtDate, isPast } from '../lib/format';
+import { isToday, hasTime, fmtTime, fmtFollowup } from '../lib/todayCallbacks';
 import { useT } from '../i18n';
 
 /** Kisi bhi clickable card ke "niche list dikhao" — click karo, yahi khulta hai us card ke neeche.
@@ -35,7 +36,7 @@ export default function DashExpand({ title, teamRole, memberUid, memberIds, filt
               </div>
               {l.next_followup ? (
                 <span className={`due-when ${isPast(l.next_followup) ? 'over' : ''}`}>
-                  <i className="fas fa-clock" /> {fmtDate(l.next_followup)}
+                  <i className={`fas ${isToday(l.next_followup) ? 'fa-bell' : 'fa-clock'}`} /> {isToday(l.next_followup) ? `${'Aaj'}${hasTime(l.next_followup) ? ' · ' + fmtTime(l.next_followup) : ''}` : fmtFollowup(l.next_followup)}
                 </span>
               ) : (
                 <span className="due-when"><i className="fas fa-calendar" /> {fmtDate(l.created_at)}</span>

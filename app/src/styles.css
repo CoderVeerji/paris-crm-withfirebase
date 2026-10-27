@@ -1375,12 +1375,37 @@ table.mis-t th.mis-th-group { text-align: center; background: color-mix(in srgb,
 .ld-pend { display: inline-block; min-width: 26px; padding: 2px 9px; border-radius: 999px; background: var(--danger); color: #fff; font-weight: 800; text-align: center; }
 .ld-ok { color: var(--success); font-weight: 700; }
 /* Aaj ke time-wale callbacks (components/TodayCallbacks.jsx) + card par highlight */
-.tcb { margin: 6px 0 10px; padding: 10px 12px; border-radius: var(--radius); background: color-mix(in srgb, var(--navy-accent) 8%, var(--card));
+.tcb { margin: 6px 0 26px; /* filterbar ka margin -14px hai — uske neeche na dabe */  padding: 10px 12px; border-radius: var(--radius); background: color-mix(in srgb, var(--navy-accent) 8%, var(--card));
   border: 1px solid color-mix(in srgb, var(--navy-accent) 30%, var(--line)); }
 .tcb-head { display: flex; justify-content: space-between; align-items: center; gap: 8px; font-size: 12px; color: var(--muted); margin-bottom: 8px; }
 .tcb-head b { color: var(--ink); font-size: 13px; }
 .tcb-head b i { color: var(--navy-accent); margin-right: 4px; }
-.tcb-row { display: flex; gap: 8px; overflow-x: auto; padding: 9px 0 2px; -webkit-overflow-scrolling: touch; scrollbar-width: thin; }
+.tcb-list { display: flex; flex-direction: column; gap: 7px; }
+.tcb-row { display: flex; align-items: center; gap: 12px; padding: 9px 12px; border-radius: 12px; background: var(--card); border: 1.5px solid var(--line-2); cursor: pointer; position: relative; }
+.tcb-when { flex: 0 0 auto; display: flex; flex-direction: column; align-items: center; gap: 2px; min-width: 70px; color: var(--navy-accent); }
+.tcb-when i { font-size: 13px; }
+.tcb-when b { font-size: 14px; font-weight: 800; white-space: nowrap; }
+.tcb-who { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.tcb-sub { font-size: 12px; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.tcb-act { display: flex; gap: 6px; flex-shrink: 0; }
+.tcb-act .btn { padding: 8px 11px; }
+.tcb-row.next { border-color: var(--navy-accent); box-shadow: 0 0 0 2px color-mix(in srgb, var(--navy-accent) 25%, transparent); }
+.tcb-row.past { border-color: color-mix(in srgb, var(--danger) 55%, var(--line)); background: color-mix(in srgb, var(--danger) 7%, var(--card)); }
+.tcb-row.past .tcb-when { color: var(--danger); }
+.tcb-more { margin: 8px 0 0; font-size: 12px; color: var(--muted); text-align: center; }
+/* Voice quick update (components/VoiceQuick.jsx) */
+.vq { margin-bottom: 12px; }
+.vq-btn { width: 100%; display: flex; align-items: center; justify-content: center; gap: 10px; padding: 13px 14px; border-radius: 12px; font-size: 14.5px; font-weight: 800;
+  background: color-mix(in srgb, var(--navy-accent) 10%, var(--card)); border: 1.5px solid var(--navy-accent); color: var(--navy-accent); cursor: pointer; }
+.vq-btn i { font-size: 17px; }
+.vq-btn.on { background: var(--danger); border-color: var(--danger); color: #fff; animation: va-pulse 1.2s ease-in-out infinite; }
+.vq-btn:disabled { opacity: 0.55; cursor: not-allowed; }
+.vq-hint { margin: 6px 2px 0; font-size: 11.5px; color: var(--muted); }
+.vq-live { margin: 8px 2px 0; font-size: 13.5px; font-weight: 600; color: var(--ink); }
+.vq-count { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 12px; padding: 10px 12px; border-radius: 12px;
+  background: color-mix(in srgb, var(--success) 12%, var(--card)); border: 1.5px solid var(--success); }
+.vq-count b { display: block; font-size: 13.5px; color: var(--ink); }
+.vq-count small { display: block; margin-top: 2px; font-size: 12px; color: var(--muted); }
 .tcb-chip { flex: 0 0 auto; display: flex; flex-direction: column; align-items: flex-start; gap: 1px; min-width: 112px; max-width: 170px; padding: 7px 11px; border-radius: 10px;
   background: var(--card); border: 1.5px solid var(--line-2); color: var(--ink); text-align: left; cursor: pointer; position: relative; }
 .tcb-time { font-size: 12px; font-weight: 800; color: var(--navy-accent); white-space: nowrap; }

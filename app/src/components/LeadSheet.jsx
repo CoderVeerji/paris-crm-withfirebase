@@ -1,6 +1,9 @@
 import Select from './Select';
 import ListSelect from './ListSelect';
 import VoiceAssist from './VoiceAssist';
+import VoiceQuick from './VoiceQuick';
+import { fmtFollowup } from '../lib/todayCallbacks';
+import { parseFollowup, toLocalInput, matchFormAnswers } from '../lib/voiceParse';
 import { normalizeState } from '../lib/states';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useAuth } from '../auth';
@@ -161,6 +164,48 @@ export default function LeadSheet({ lead: leadIn, onClose, onSaved }) {
   const willHitLimit = !isSalesFlow && !isQualify && stage !== 'dead' && stage !== 'lost'
     && attemptLimit && (lead.attempts || 0) + 1 >= attemptLimit;
 
+  // ===== EK-TAP VOICE UPDATE =====
+  // mic dabao -> bolo ("hot lead, kal shaam 4 baje call karna") -> stage / date-time / form / remark khud bhar jaate hain ->
+  // sab zaroori cheezein poori hon to 3 second ke countdown ke baad apne-aap save (beech mein "Rok"). Adhoora ho to bharke chhod deta hai.
+  const saveRef = useRef(null);
+  const [vc, setVc] = useState(null);        // { n } countdown chal raha hai
+  const [vTick, setVTick] = useState(0);
+  const vForms = (cfg.forms || []).filter((f) => ['admin', 'md', 'tl'].includes(role) || f.role_edit === 'both' || f.role_edit === (isSalesFlow ? 'sales' : 'ldr'));
+
+  function applyVoice(text) {
+    const T = String(text || '').trim();
+    if (!T) return;
+    const low = ' ' + T.toLowerCase().replace(/[^a-z0-9\u0900-\u097f]+/g, ' ') + ' ';
+    // stage ka naam bola ho to wahi (lambe naam pehle: "hot lead" ko "lead" se pehle)
+    const hit = [...roleStages].sort((a, b) => b.label.length - a.label.length)
+      .find((s) => low.includes(' ' + s.label.toLowerCase().replace(/[^a-z0-9\u0900-\u097f]+/g, ' ').trim() + ' '));
+    const target = hit || stageObj;
+    if (hit && hit.name !== stage) setStage(hit.name);
+    setRemark(T);
+    if (target?.req) { const d = parseFollowup(T); if (d) setNextDt(toLocalInput(d)); }
+    if (target?.form) { const m = matchFormAnswers(T, vForms, splitList); if (Object.keys(m).length) setAnswers((a) => ({ ...a, ...m })); }
+    setVTick((n) => n + 1);
+  }
+  // state set hone ke BAAD (agle render mein) check: sab zaroori bhara hai? to countdown
+  useEffect(() => {
+    if (!vTick) return;
+    const probs = [];
+    if (!remark.trim()) probs.push(t('remarkReq'));
+    if (needsDate && !nextDt) probs.push(t('vqNeedDate'));
+    if (isOrder && !(Number(amount) > 0)) probs.push(t('amountReq'));
+    const missing = editableForms.find((f) => f.is_mandatory === 'Yes' && !String(answers[f.label] || '').trim());
+    if (missing) probs.push(fill(t('fieldReq'), { f: missing.label }));
+    if (probs.length) { setVc(null); fail(`${t('vqFilled')} ${probs[0]}`); return; }
+    setErr(''); setVc({ n: 3 });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [vTick]);
+  useEffect(() => {
+    if (!vc) return undefined;
+    if (vc.n <= 0) { setVc(null); saveRef.current?.({ preventDefault() {} }); return undefined; }
+    const id = setTimeout(() => setVc((v) => (v ? { n: v.n - 1 } : v)), 1000);
+    return () => clearTimeout(id);
+  }, [vc]);
+
   async function save(e) {
     e.preventDefault();
     setErr('');
@@ -200,6 +245,7 @@ export default function LeadSheet({ lead: leadIn, onClose, onSaved }) {
     }
   }
 
+  saveRef.current = save;
   const st = isSalesFlow ? (lead.sales_status || lead.status) : lead.status;
   const dial = lead.phone_raw || lead.phone;
 
@@ -267,6 +313,17 @@ export default function LeadSheet({ lead: leadIn, onClose, onSaved }) {
             {lead.review_queue && <div className="alert alert-error"><i className="fas fa-gavel" /> {t('rqBanner')}</div>}
             {!lead.review_queue && willHitLimit && <div className="alert alert-warn"><i className="fas fa-triangle-exclamation" /> {t('rqWarn')}</div>}
 
+            <VoiceQuick onFinal={applyVoice} disabled={saving || !!vc} />
+            {vc && (
+              <div className="vq-count" role="status">
+                <div>
+                  <b><i className="fas fa-bolt" /> {fill(t('vqSaving'), { n: vc.n })}</b>
+                  <small>{stageObj?.label || stage}{needsDate && nextDt ? ` · ${fmtFollowup(new Date(nextDt))}` : ''} · “{remark.length > 70 ? remark.slice(0, 70) + '…' : remark}”</small>
+                </div>
+                <button type="button" className="btn btn-danger" onClick={() => setVc(null)}>{t('vqCancel')}</button>
+              </div>
+            )}
+
             <div className="form-group">
               <label>{t('nextStage')} *</label>
               <Select className="form-control" value={stage} onChange={(e) => setStage(e.target.value)}>
@@ -333,7 +390,7 @@ export default function LeadSheet({ lead: leadIn, onClose, onSaved }) {
                   const schedTxt = schedFromText(a)
                     || (ai === 0 && !a.scheduled_for && lead.next_followup
                         && ['call back', 'callback', 'no answer', 'followup', 'follow up'].includes(String(stg).toLowerCase())
-                      ? fmtDate(lead.next_followup) : null);
+                      ? fmtFollowup(lead.next_followup) : null);
                   return (
                   <div className="tl-item" key={a.id}>
                     <div className="tl-dot"><i className={`fas ${ACT_ICON[a.action] || 'fa-circle'}`} /></div>

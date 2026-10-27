@@ -4,6 +4,7 @@ import { useT, fill } from '../i18n';
 import { useConfig, salesUsers, workerUsers, splitList, userName } from '../config';
 import { RANGE_PRESETS, rangeFor } from '../lib/daterange';
 import { fmtStatus, fmtDate, isPast } from '../lib/format';
+import { isToday, hasTime, fmtTime, fmtFollowup } from '../lib/todayCallbacks';
 import { fetchDashLeadsAll } from '../lib/dashboardLeads';
 import { downloadCsv } from '../lib/csv';
 import {
@@ -499,7 +500,7 @@ function ActionableTable({ teamRole, memberUid, memberIds, filter, cfg, t, onOpe
                     <span className={`status-badge ${bg}`}>{fmtStatus(stg)}</span>
                     {l._touches > 1 && <span className="status-badge bg-default" style={{ marginLeft: 4, fontSize: 10 }}><i className="fas fa-phone" /> {l._touches}×</span>}
                   </td>
-                  <td>{l.next_followup ? <b style={{ color: isPast(l.next_followup) ? 'var(--danger)' : '#e65100', fontSize: 12 }}>{fmtDate(l.next_followup)}</b> : '-'}</td>
+                  <td>{l.next_followup ? <b style={{ color: isPast(l.next_followup) ? 'var(--danger)' : '#e65100', fontSize: 12 }}>{isToday(l.next_followup) ? <><i className="fas fa-bell" /> {hasTime(l.next_followup) ? fmtTime(l.next_followup) : 'Aaj'}</> : fmtFollowup(l.next_followup)}</b> : '-'}</td>
                   <td>{l.last_action_at
                     ? <span style={{ fontSize: 11.5, fontWeight: updOk ? 700 : 400, color: updOk ? 'var(--success)' : 'var(--muted)' }}>{fmtDate(l.last_action_at)}{updOk ? ' ✓' : ''}</span>
                     : <span style={{ fontSize: 11.5, color: 'var(--muted)' }}>{t('daNever')}</span>}</td>

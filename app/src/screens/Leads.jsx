@@ -19,7 +19,7 @@ import LeadsSummary from '../components/LeadsSummary';
 import LeadSheet from '../components/LeadSheet';
 import NewLeadSheet from '../components/NewLeadSheet';
 import TodayCallbacks from '../components/TodayCallbacks';
-import { isToday, hasTime, fmtTime } from '../lib/todayCallbacks';
+import { isToday, hasTime, fmtTime, fmtFollowup } from '../lib/todayCallbacks';
 import Sheet from '../components/Sheet';
 import WaIcon from '../components/WaIcon';
 
@@ -628,7 +628,7 @@ export function LeadCard({ lead, t, onOpen, selMode, selected, statusMode = 'eff
         {fu && isToday(fu)
           ? <span className={`fu-today ${isPast(fu) ? 'over' : ''}`}><i className="fas fa-bell" /> {t('tcToday')}{hasTime(fu) ? ` · ${fmtTime(fu)}` : ''}</span>
           : fu
-            ? <span className={isPast(fu) ? 'over' : ''}><i className="fas fa-clock" /> {fmtDate(fu)}</span>
+            ? <span className={isPast(fu) ? 'over' : ''}><i className="fas fa-clock" /> {fmtFollowup(fu)}</span>
             : <span><i className="fas fa-calendar" /> {fmtDate(lead.created_at)}</span>}
       </div>
 
@@ -662,7 +662,7 @@ export function LeadRow({ lead, t, onOpen, statusMode = 'effective' }) {
           {who && <> · <i className="fas fa-user" /> {who}</>}
           {fu && isToday(fu)
             ? <> · <span className={`fu-today ${isPast(fu) ? 'over' : ''}`}><i className="fas fa-bell" /> {t('tcToday')}{hasTime(fu) ? ` · ${fmtTime(fu)}` : ''}</span></>
-            : fu && <> · <span className={isPast(fu) ? 'over' : ''}><i className="fas fa-clock" /> {fmtDate(fu)}</span></>}
+            : fu && <> · <span className={isPast(fu) ? 'over' : ''}><i className="fas fa-clock" /> {fmtFollowup(fu)}</span></>}
         </div>
       </div>
       {dialNum && (
