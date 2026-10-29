@@ -25,6 +25,12 @@ export function joinText(a, b) {
 }
 const joinAll = (parts) => parts.reduce((acc, t) => joinText(acc, t), '');
 
+// Voice se form bhar jaane ke baad: 0 = Off (user khud check karke Submit dabaye), warna itne second baad apne-aap submit (3 / 6 / 8)
+export const AUTO_CHOICES = [0, 3, 6, 8];
+const AUTO_KEY = 'pc_voice_auto';
+export const readAutoSecs = () => { try { const v = localStorage.getItem(AUTO_KEY); if (v !== null && AUTO_CHOICES.includes(+v)) return +v; } catch { /* ignore */ } return 3; };
+export const saveAutoSecs = (n) => { try { localStorage.setItem(AUTO_KEY, String(n)); } catch { /* ignore */ } };
+
 const LANG_KEY = 'pc_voice_lang';
 export const readVoiceLang = (appLang) => { try { const v = localStorage.getItem(LANG_KEY); if (v) return v; } catch { /* ignore */ } return appLang === 'en' ? 'en-IN' : 'hi-IN'; };
 export const saveVoiceLang = (l) => { try { localStorage.setItem(LANG_KEY, l); } catch { /* ignore */ } };

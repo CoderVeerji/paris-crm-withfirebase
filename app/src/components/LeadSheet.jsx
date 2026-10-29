@@ -2,6 +2,7 @@ import Select from './Select';
 import ListSelect from './ListSelect';
 import VoiceAssist from './VoiceAssist';
 import VoiceQuick from './VoiceQuick';
+import { voiceSupported, readAutoSecs, saveAutoSecs, AUTO_CHOICES } from '../lib/useVoiceSession';
 import { fmtFollowup } from '../lib/todayCallbacks';
 import { parseFollowup, toLocalInput, matchFormAnswers, stageFromSpeech } from '../lib/voiceParse';
 import { normalizeState } from '../lib/states';
@@ -169,7 +170,9 @@ export default function LeadSheet({ lead: leadIn, onClose, onSaved }) {
   // sab zaroori cheezein poori hon to 3 second ke countdown ke baad apne-aap save (beech mein "Rok"). Adhoora ho to bharke chhod deta hai.
   const saveRef = useRef(null);
   const [vc, setVc] = useState(null);        // { n } countdown chal raha hai
-  const [vNote, setVNote] = useState('');    // "bola hua stage is lead par available nahi" jaisi chetavni
+  const [vNote, setVNote] = useState('');
+  const [autoSecs, setAutoSecs] = useState(readAutoSecs);   // 0 = Off (khud Submit), 3 / 6 / 8 second
+  const [vReview, setVReview] = useState(false);            // Off mode: form bhar gaya, user check karke Submit dabaye    // "bola hua stage is lead par available nahi" jaisi chetavni
   const [vTick, setVTick] = useState(0);
   const vForms = (cfg.forms || []).filter((f) => ['admin', 'md', 'tl'].includes(role) || f.role_edit === 'both' || f.role_edit === (isSalesFlow ? 'sales' : 'ldr'));
 
@@ -202,7 +205,8 @@ export default function LeadSheet({ lead: leadIn, onClose, onSaved }) {
     const missing = editableForms.find((f) => f.is_mandatory === 'Yes' && !String(answers[f.label] || '').trim());
     if (missing) probs.push(fill(t('fieldReq'), { f: missing.label }));
     if (probs.length) { setVc(null); fail(`${t('vqFilled')} ${probs[0]}${vNote ? ' · ' + vNote : ''}`); return; }
-    setErr(''); setVc({ n: 3 });
+    setErr('');
+    if (autoSecs > 0) { setVReview(false); setVc({ n: autoSecs }); } else { setVc(null); setVReview(true); }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [vTick]);
   useEffect(() => {
@@ -319,7 +323,27 @@ export default function LeadSheet({ lead: leadIn, onClose, onSaved }) {
             {lead.review_queue && <div className="alert alert-error"><i className="fas fa-gavel" /> {t('rqBanner')}</div>}
             {!lead.review_queue && willHitLimit && <div className="alert alert-warn"><i className="fas fa-triangle-exclamation" /> {t('rqWarn')}</div>}
 
-            <VoiceQuick onFinal={applyVoice} disabled={saving || !!vc} />
+            <VoiceQuick onFinal={(txt) => { setVReview(false); applyVoice(txt); }} disabled={saving || !!vc} />
+            {voiceSupported() && (
+              <div className="vq-auto" role="group" aria-label={t('vqAuto')} title={t('vqAutoTip')}>
+                <span>{t('vqAuto')}:</span>
+                {AUTO_CHOICES.map((n) => (
+                  <button key={n} type="button" className={`chip ${autoSecs === n ? 'active' : ''}`} onClick={() => { setAutoSecs(n); saveAutoSecs(n); if (n === 0) setVc(null); }}>
+                    {n === 0 ? t('vqAutoOff') : fill(t('vqAutoSec'), { n })}
+                  </button>
+                ))}
+              </div>
+            )}
+            {vReview && !vc && (
+              <div className="vq-count vq-review" role="status">
+                <div>
+                  <b><i className="fas fa-clipboard-check" /> {t('vqReview')}</b>
+                  <small>{stageObj?.label || stage}{needsDate && nextDt ? ` · ${fmtFollowup(new Date(nextDt))}` : ''} · “{remark.length > 70 ? remark.slice(0, 70) + '…' : remark}”</small>
+                  {vNote && <small className="vq-note"><i className="fas fa-circle-info" /> {vNote}</small>}
+                </div>
+                <button type="button" className="btn btn-primary" disabled={saving} onClick={() => { setVReview(false); saveRef.current?.({ preventDefault() {} }); }}>{t('vqSubmitNow')}</button>
+              </div>
+            )}
             {vc && (
               <div className="vq-count" role="status">
                 <div>

@@ -217,12 +217,22 @@ const INTENTS = [
     hi: ['खुद बता', 'बता देंगे', 'बता देगा', 'बता देगी', 'बताएंगे', 'बोलेगा', 'बोलेगी', 'बोलेंगे', 'बोला है', 'बोली है', 'कहा है', 'सोच कर', 'सोचकर', 'देखते हैं', 'देखेंगे', 'कैटलॉग भेज', 'कैटलोग भेज', 'फोटो भेज', 'डिटेल भेज', 'रेट बता', 'रेट पूछ', 'सोचेगा', 'सोचेगी', 'सोच रहा', 'सोच रही', 'इंतजार', 'इंतज़ार'] },
 ];
 
+// "Phone nahi utha / busy / switch off" = pakka Call Back. Sirf "call karunga / call karna hai" + (khud bata denge / soch raha / catalogue bheja) = Followup.
+const CB_STRONG = /\b(nahi utha|nahi uthaya|uthaya nahi|phone cut|call cut|phone band|number busy|line busy|out of coverage|reachable nahi|reply nahi|no reply|no answer|not picking|switch off|busy tha|busy thi|busy hai|baat nahi hui|ring ja)\b/;
+const CB_STRONG_HI = ['फोन नहीं उठा', 'कॉल नहीं उठा', 'स्विच ऑफ', 'बिजी', 'बात नहीं हुई', 'उठाया नहीं', 'फोन कट', 'कॉल कट', 'फोन बंद', 'रिप्लाई नहीं'];
+
 /** Naam nahi bola — bole hue matlab se stage ka andaza. Return { name, available, inferred: true } ya null. */
 function inferStage(text, allNames, availableNames) {
   const low = ' ' + String(text || '').toLowerCase().replace(/[.,!?।"“”]+/g, ' ').replace(/\s+/g, ' ') + ' ';
   for (const it of INTENTS) {
     if (!allNames.includes(it.stage)) continue;                       // ye stage config mein hai hi nahi
-    if (it.rom.test(low) || it.hi.some((p) => low.includes(p))) return { name: it.stage, available: availableNames.includes(it.stage), inferred: true };
+    if (it.rom.test(low) || it.hi.some((p) => low.includes(p))) {
+      if (it.stage === 'call back' && !(CB_STRONG.test(low) || CB_STRONG_HI.some((p) => low.includes(p)))) {
+        const fu = INTENTS.find((x) => x.stage === 'followup');
+        if (fu && allNames.includes('followup') && availableNames.includes('followup') && (fu.rom.test(low) || fu.hi.some((p) => low.includes(p)))) return { name: 'followup', available: true, inferred: true };
+      }
+      return { name: it.stage, available: availableNames.includes(it.stage), inferred: true };
+    }
   }
   return null;
 }
