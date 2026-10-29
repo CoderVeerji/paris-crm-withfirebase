@@ -20,7 +20,8 @@ const DEVNUM = [
 ];
 const NOTDEV = '(?<![\\u0900-\\u097F])'; const NOTDEV2 = '(?![\\u0900-\\u097F])';
 const devaNum = (s) => DEVNUM.reduce((acc, [d, r]) => acc.replace(new RegExp(NOTDEV + d + NOTDEV2, 'g'), ' ' + r + ' '), s);
-const deva = (s) => devaNum(DEVWORDS.reduce((acc, [d, r]) => acc.split(d).join(' ' + r + ' '), s));
+const fixDevaCall = (s) => s.replace(/(कॉल|काल|कौल)\s+(?=(?:आएगा|आएगी|आएंगे|आऊंगा|आऊंगी|आयेगा|आयेगी|आयेंगे)(?![\u0900-\u097F]))/g, 'कल ');
+const deva = (s) => devaNum(DEVWORDS.reduce((acc, [d, r]) => acc.split(d).join(' ' + r + ' '), fixDevaCall(s)));
 
 // Roman ank-shabd (do din baad, teen baje, saade paanch baje...) -> digits — sirf jab aage koi unit/ank ho ("do" jaise aam shabd aur
 // "sat" (Saturday) ko bina unit ke na chhue)
@@ -32,7 +33,19 @@ const NUMW = {
 const NUM_UNIT = '(?:baje|bje|bajey|din|dino|hafte|hafta|week|weeks|ghante|ghanta|ghnte|hour|hours|minute|min|mins|mahine|mahina|month|months|tarikh|tarik|tareekh|date|am|pm)';
 const NUMW_RE = new RegExp('\\b(' + Object.keys(NUMW).join('|') + ')\\b(?=\\s+(?:' + NUM_UNIT + '|\\d))', 'g');
 const numWords = (s) => { let x = s; for (let i = 0; i < 3; i++) x = x.replace(NUMW_RE, (m) => String(NUMW[m])); return x; };
-const norm = (s) => numWords(deva(String(s || '')).toLowerCase()
+// Chrome ke speech-to-text ki aam galat spellings (khaaskar en-IN) -> sahi shabd. "cal" = kal (tomorrow); "call" sirf tab jab uske baad seedha "aayega" jaisa
+// aane wala kriya ho ("call aayegi" = kal aayegi); baaki "call karna" jaisa call hi rehta hai.
+const MISHEAR = [
+  [/\b(cal|kl|kaal)\b/g, 'kal'],
+  [/\bcall\s+(?=(?:aayega|ayega|aaega|aega|aayegi|ayegi|aaegi|aegi|aayenge|ayenge|aaenge|aenge|aaunga|aunga|aaungi|aungi)\b)/g, 'kal '],
+  [/\b(parsa|paarso|parsoh|parsoo)\b/g, 'parso'],
+  [/\b(bajae|baaje|bajai|bajay|bhaje|bajhe)\b/g, 'baje'],
+  [/\b(dupahar|dopehar|dupehar|dophar|do pehar|do pahar|do peher)\b/g, 'dopahar'],
+  [/\b(saadhe|sadhe)\b/g, 'saade'], [/\bsawa\b/g, 'sava'],
+  [/\b(tareekh|taarikh|tarek)\b/g, 'tarikh'], [/\b(haftey|haftay|hafto)\b/g, 'hafte'],
+];
+const fixHeard = (s) => MISHEAR.reduce((acc, [re, to]) => acc.replace(re, to), s);
+const norm = (s) => numWords(fixHeard(deva(String(s || '')).toLowerCase())
   .replace(/[०-९]/g, (c) => DEV[c])
   .replace(/[,।.!?]/g, ' ').replace(/\s+/g, ' ').trim())
   // "4 se 5 baje", "4-5 baje" -> pehla time

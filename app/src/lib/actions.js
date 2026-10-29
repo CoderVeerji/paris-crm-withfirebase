@@ -242,9 +242,10 @@ export async function markUrgent(lead, actor, remark, newAssignee) {
       upd.status = 'call back';
     }
   } else {
-    // dobara kholo — jiske paas thi usi ko wapas
+    // dobara kholo — jiske paas thi usi ko wapas. Koi owner hi nahi (fresh pool ki lead) to status NA chhedo: 'call back' ho jaye to wo
+    // pool (fresh/new) se hat jaati hai aur kisi LDR ko dikhti nahi (lead "gayab").
     if (lead.sales_uid) upd.sales_status = 'followup';
-    else upd.status = 'call back';
+    else if (lead.ldr_uid) upd.status = 'call back';
   }
 
   // sales_status/status yahan touch ho sakti hai — sales_open dobara recompute, upar wale

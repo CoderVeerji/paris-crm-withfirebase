@@ -204,7 +204,7 @@ export default function LeadSheet({ lead: leadIn, onClose, onSaved }) {
     if (isOrder && !(Number(amount) > 0)) probs.push(t('amountReq'));
     const missing = editableForms.find((f) => f.is_mandatory === 'Yes' && !String(answers[f.label] || '').trim());
     if (missing) probs.push(fill(t('fieldReq'), { f: missing.label }));
-    if (probs.length) { setVc(null); fail(`${t('vqFilled')} ${probs[0]}${vNote ? ' · ' + vNote : ''}`); return; }
+    if (probs.length) { setVc(null); fail(`${t('vqFilled')} ${probs[0]}${vNote ? ' · ' + vNote : ''} · ${t('vqHeard')}: “${remark.length > 90 ? remark.slice(0, 90) + '…' : remark}”`); return; }
     setErr('');
     if (autoSecs > 0) { setVReview(false); setVc({ n: autoSecs }); } else { setVc(null); setVReview(true); }
     // eslint-disable-next-line react-hooks/exhaustive-deps
