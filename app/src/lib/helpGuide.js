@@ -32,6 +32,19 @@ export const GUIDE = [
     },
   },
   {
+    id: 'voice-update', roles: ['ldr', 'sales', 'admin'], icon: 'fa-microphone',
+    q: {
+      en: 'Voice update: what can I say?',
+      hi: 'वॉइस अपडेट: क्या-क्या बोल सकते हैं?',
+      hinglish: 'Voice update: kya-kya bol sakte hain?',
+    },
+    a: {
+      en: 'Open a lead, tap **Update by voice** (Chrome) and just talk. The stage, next call date/time and remark are filled from what you say, then it saves after a 3-second countdown (tap Stop to cancel).\n**Stage** — say its name ("followup", "hot lead", "visit") or just the meaning: "party will come day after" = Visit, "call karna hai" = Call Back, "will tell us later" = Followup, "not interested" = Lost, "ready to order" = Hot Lead. Qualified and Order Done are never picked automatically — say the name.\n**Date/time** — "kal", "parso", "do din baad", "10 din baad", "agle hafte", "4 tarikh ko", "shukravar", "kal shaam 4 baje", "saade teen baje". Only a day said = 11:00 am that day; shaam = 5 pm, raat = 8 pm.\nIf a stage is not available for that lead (e.g. Visit on an LDR lead) the current stage stays.',
+      hi: 'किसी लीड को खोलें, **Update by voice** (Chrome) दबाएँ और बोलें। स्टेज, अगली कॉल की तारीख/समय और रिमार्क आपकी बात से भर जाते हैं, फिर 3 सेकंड के काउंटडाउन के बाद सेव हो जाता है (रोकना हो तो Stop दबाएँ)।\n**स्टेज** — नाम बोलें ("फॉलोअप", "हॉट लीड", "विजिट") या सिर्फ़ मतलब: "पार्टी परसों आएगी" = Visit, "कॉल करना है" = Call Back, "खुद बता देंगे" = Followup, "इंटरेस्टेड नहीं" = Lost, "ऑर्डर देगा" = Hot Lead। Qualified और Order Done अपने आप नहीं लगते — नाम बोलना होगा।\n**तारीख/समय** — "कल", "परसों", "दो दिन बाद", "10 दिन बाद", "अगले हफ्ते", "4 तारीख को", "शुक्रवार", "कल शाम 4 बजे", "साढ़े तीन बजे"। सिर्फ़ दिन बोला तो उस दिन सुबह 11:00; शाम = 5 बजे, रात = 8 बजे।\nअगर कोई स्टेज उस लीड के लिए उपलब्ध नहीं (जैसे LDR लीड पर Visit) तो मौजूदा स्टेज ही रहता है।',
+      hinglish: 'Lead kholo, **Update by voice** (Chrome) dabao aur bolo. Stage, agli call ki date/time aur remark tumhari baat se bhar jaate hain, phir 3 second ke countdown ke baad save ho jata hai (rokna ho to Stop dabao).\n**Stage** — naam bolo ("followup", "hot lead", "visit") ya sirf matlab: "party parso aaegi" = Visit, "call karna hai" = Call Back, "khud bata denge" = Followup, "interested nahi" = Lost, "order dega" = Hot Lead. Qualified aur Order Done apne aap nahi lagte — naam bolna padega.\n**Date/time** — "kal", "parso", "do din baad", "10 din baad", "agle hafte", "4 tarikh ko", "shukravar", "kal shaam 4 baje", "saade teen baje". Sirf din bola to us din subah 11:00; shaam = 5 baje, raat = 8 baje.\nAgar koi stage us lead ke liye available nahi (jaise LDR lead par Visit) to current stage hi rehta hai.',
+    },
+  },
+  {
     id: 'ldr-flow', roles: ['ldr', 'admin'], icon: 'fa-leaf',
     q: {
       en: 'LDR: how to work a new lead start to finish',

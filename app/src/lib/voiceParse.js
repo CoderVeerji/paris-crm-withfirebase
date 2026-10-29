@@ -12,16 +12,39 @@ const DEVWORDS = [
   ['आधा', 'aadha'], ['डेढ़', 'dedh'], ['डेढ', 'dedh'], ['ढाई', 'dhai'], ['सवा', 'sava'], ['साढ़े', 'saade'], ['साढे', 'saade'], ['पौने', 'paune'],
   ['सोमवार', 'somvar'], ['मंगलवार', 'mangalvar'], ['बुधवार', 'budhvar'], ['गुरुवार', 'guruvar'], ['वीरवार', 'veervar'], ['शुक्रवार', 'shukravar'], ['शनिवार', 'shanivar'], ['रविवार', 'ravivar'], ['इतवार', 'itwar'],
 ];
-const deva = (s) => DEVWORDS.reduce((acc, [d, r]) => acc.split(d).join(' ' + r + ' '), s);
-const norm = (s) => deva(String(s || '')).toLowerCase()
+const DEVNUM = [
+  ['पंद्रह', 'pandrah'], ['पन्द्रह', 'pandrah'], ['ग्यारह', 'gyarah'], ['बारह', 'barah'], ['तेरह', 'terah'], ['चौदह', 'chaudah'], ['सोलह', 'solah'], ['सत्रह', 'satrah'],
+  ['अठारह', 'atharah'], ['उन्नीस', 'unnis'], ['बीस', 'bees'], ['तीस', 'tees'], ['पांच', 'paanch'], ['पाँच', 'paanch'], ['छह', 'chhe'], ['छः', 'chhe'], ['सात', 'saat'], ['आठ', 'aath'],
+  ['नौ', 'nau'], ['दस', 'das'], ['तीन', 'teen'], ['चार', 'chaar'], ['एक', 'ek'], ['दो', 'do'],
+  ['अगले महीने', 'agle mahine'], ['महीने', 'mahine'], ['महीना', 'mahine'], ['थोड़ी देर', 'thodi der'], ['थोड़ी देर', 'thodi der'], ['कुछ देर', 'thodi der'],
+];
+const NOTDEV = '(?<![\\u0900-\\u097F])'; const NOTDEV2 = '(?![\\u0900-\\u097F])';
+const devaNum = (s) => DEVNUM.reduce((acc, [d, r]) => acc.replace(new RegExp(NOTDEV + d + NOTDEV2, 'g'), ' ' + r + ' '), s);
+const deva = (s) => devaNum(DEVWORDS.reduce((acc, [d, r]) => acc.split(d).join(' ' + r + ' '), s));
+
+// Roman ank-shabd (do din baad, teen baje, saade paanch baje...) -> digits — sirf jab aage koi unit/ank ho ("do" jaise aam shabd aur
+// "sat" (Saturday) ko bina unit ke na chhue)
+const NUMW = {
+  ek: 1, do: 2, teen: 3, tin: 3, char: 4, chaar: 4, paanch: 5, panch: 5, paach: 5, chhe: 6, chhah: 6, chhey: 6, chah: 6, saat: 7, aath: 8, nau: 9, das: 10, dus: 10,
+  gyarah: 11, barah: 12, baarah: 12, terah: 13, chaudah: 14, pandrah: 15, solah: 16, satrah: 17, atharah: 18, unnis: 19, bees: 20, ikkis: 21, bais: 22, teis: 23,
+  chaubis: 24, pachchis: 25, chhabbis: 26, sattais: 27, atthais: 28, untis: 29, tees: 30, ikatees: 31,
+};
+const NUM_UNIT = '(?:baje|bje|bajey|din|dino|hafte|hafta|week|weeks|ghante|ghanta|ghnte|hour|hours|minute|min|mins|mahine|mahina|month|months|tarikh|tarik|tareekh|date|am|pm)';
+const NUMW_RE = new RegExp('\\b(' + Object.keys(NUMW).join('|') + ')\\b(?=\\s+(?:' + NUM_UNIT + '|\\d))', 'g');
+const numWords = (s) => { let x = s; for (let i = 0; i < 3; i++) x = x.replace(NUMW_RE, (m) => String(NUMW[m])); return x; };
+const norm = (s) => numWords(deva(String(s || '')).toLowerCase()
   .replace(/[०-९]/g, (c) => DEV[c])
-  .replace(/[,।.!?]/g, ' ').replace(/\s+/g, ' ').trim();
+  .replace(/[,।.!?]/g, ' ').replace(/\s+/g, ' ').trim())
+  // "4 se 5 baje", "4-5 baje" -> pehla time
+  .replace(/\b(\d{1,2})\s*(?:se|to|-)\s*(\d{1,2})\s*(baje|bje|bajey)\b/g, '$1 $3')
+  .replace(/\s+/g, ' ').trim();
 
 // Hindi (Devanagari) ke saath-saath Roman spellings
 const W = {
   today: /\b(aaj|aj|today|आज)\b/,
   tomorrow: /\b(kal|tomorrow|कल)\b/,
-  dayAfter: /\b(parso|parson|day after tomorrow|परसों|परसो)\b/,
+  dayAfter: /\b(parso|parson|parsoon|parsu|day after tomorrow|परसों|परसो)\b/,
+  threeDays: /\b(narso|narson|tarso|tarson)\b/,
   nextWeek: /\b(agle hafte|agle week|next week|अगले हफ्ते|अगले सप्ताह)\b/,
   morning: /\b(subah|subha|morning|सुबह)\b/,
   noon: /\b(dopahar|dophar|afternoon|दोपहर)\b/,
@@ -80,8 +103,14 @@ function parseRelative(t, now) {
   if ((m = t.match(/\b(\d{1,3})\s*(min(?:ute|ut|s)?|मिनट)\b.*?\b(baad|bad|me|mein|में|बाद|later|after)\b/))) return new Date(now.getTime() + (+m[1]) * 60000);
   if ((m = t.match(/\b(\d{1,2})\s*(ghante|ghanta|ghnte|hour|hours|hr|hrs|घंटे|घंटा)\b.*?\b(baad|bad|me|mein|में|बाद|later|after)\b/))) return new Date(now.getTime() + (+m[1]) * 3600000);
   if (/\b(aadha|adha|आधा)\s*(ghanta|ghante|घंटा|hour)\b/.test(t)) return new Date(now.getTime() + 30 * 60000);
+  if (/\b(dedh|डेढ़|डेढ)\s*(ghanta|ghante|hour)\b/.test(t)) return new Date(now.getTime() + 90 * 60000);
+  if (/\b(dhai|dhaai|ढाई)\s*(ghanta|ghante|hour)\b/.test(t)) return new Date(now.getTime() + 150 * 60000);
+  if (/\b(thodi der|kuch der|thodi der me|thodi der mein|shortly|in a while)\b/.test(t)) return new Date(now.getTime() + 60 * 60000);
+  if ((m = t.match(/\b(\d{1,2})\s*(mahine|mahina|month|months)\b/))) { const d = new Date(now); d.setMonth(d.getMonth() + (+m[1])); return { date: d }; }
   if ((m = t.match(/\b(\d{1,2})\s*(din|days?|दिन)\b.*?\b(baad|bad|me|mein|में|बाद|later|after)\b/))) { const d = new Date(now); d.setDate(d.getDate() + (+m[1])); return { date: d }; }
-  if ((m = t.match(/\b(\d{1,2})\s*(hafte|week|weeks|हफ्ते)\b.*?\b(baad|bad|बाद|later|after)\b/))) { const d = new Date(now); d.setDate(d.getDate() + 7 * (+m[1])); return { date: d }; }
+  if ((m = t.match(/\b(\d{1,2})\s*(hafte|hafta|week|weeks|हफ्ते)\b.*?\b(baad|bad|me|mein|बाद|later|after)\b/))) { const d = new Date(now); d.setDate(d.getDate() + 7 * (+m[1])); return { date: d }; }
+  // "teen din aayega" (baad/mein bole bina) — ank + din hi kaafi
+  if ((m = t.match(/\b(\d{1,2})\s*(din|dino|days?)\b/))) { const d = new Date(now); d.setDate(d.getDate() + (+m[1])); return { date: d }; }
   return null;
 }
 
@@ -100,6 +129,7 @@ function parseDayOfMonth(t, base) {
 
 /** Jab sirf din bola ho (time nahi) — us din subah 11:00 baje. */
 export const DEFAULT_FOLLOWUP_HOUR = 11;
+const PERIOD_HOUR = { am: 11, noon: 13, pm: 17, night: 20 }; // hissa-e-din bola par ghanta nahi bola
 
 /** @returns {Date | null} — bole hue text se agla follow-up (local time) */
 export function parseFollowup(text, now = new Date()) {
@@ -113,20 +143,36 @@ export function parseFollowup(text, now = new Date()) {
   let day = null; // Date (00:00)
   const base = new Date(now); base.setHours(0, 0, 0, 0);
   const addDays = (n) => { const d = new Date(base); d.setDate(d.getDate() + n); return d; };
-  if (W.dayAfter.test(t)) day = addDays(2);
-  else if (W.tomorrow.test(t)) day = addDays(1);
-  else if (W.nextWeek.test(t)) day = addDays(7);
+  // "kal ya parso" -> pehla bola (kal); "kal nahi parso" -> sudhaar, aakhri bola (parso)
+  const mentions = [];
+  const addM = (re, n) => { const m = re.exec(t); if (m) mentions.push({ pos: m.index, n }); };
+  addM(W.tomorrow, 1); addM(W.dayAfter, 2); addM(W.threeDays, 3); addM(W.nextWeek, 7);
+  mentions.sort((a, b) => a.pos - b.pos);
+  const negated = /\b(nahi|nahin|nhi|nai|nahee|not|no)\b/.test(t);
+  const dom = parseDayOfMonth(t, base);
+  const nextMonth = /\b(agle mahine|agle month|next month)\b/.test(t);
+  if (nextMonth) {
+    const m = t.match(/\b(\d{1,2})\s*(?:tarikh|tarik|tareekh|taarikh|date)\b/);
+    day = m ? new Date(base.getFullYear(), base.getMonth() + 1, +m[1]) : new Date(base.getFullYear(), base.getMonth() + 1, base.getDate());
+  } else if (mentions.length) day = addDays((negated ? mentions[mentions.length - 1] : mentions[0]).n);
   else if (rel && rel.date) day = new Date(new Date(rel.date).setHours(0, 0, 0, 0));
-  else if (parseDayOfMonth(t, base)) day = parseDayOfMonth(t, base);
+  else if (dom) day = dom;
   else if (W.today.test(t)) day = addDays(0);
   else {
     for (const [wd, re] of WEEKDAYS) { if (re.test(t)) { let diff = (wd - now.getDay() + 7) % 7; if (diff === 0) diff = 7; day = addDays(diff); break; } }
   }
 
   const clock = parseClock(t);
+  const per = periodOf(t);
+  // time ka sirf hissa-e-din bola ("shaam ko call karna") — aaj ka wo hissa, nikal chuka ho to kal
+  if (!day && !clock && per) {
+    const dd = new Date(base); dd.setHours(PERIOD_HOUR[per], 0, 0, 0);
+    if (dd.getTime() <= now.getTime()) dd.setDate(dd.getDate() + 1);
+    return dd;
+  }
   if (!day && !clock) return null;
-  if (!clock) { // sirf din bola (time nahi) — us din subah 11:00 baje
-    const d = new Date(day); d.setHours(DEFAULT_FOLLOWUP_HOUR, 0, 0, 0); return d;
+  if (!clock) { // sirf din bola (time nahi): koi hissa-e-din bola ho (shaam / dopahar / raat) to uska time, warna us din subah 11:00 baje
+    const d = new Date(day); d.setHours(per ? PERIOD_HOUR[per] : DEFAULT_FOLLOWUP_HOUR, 0, 0, 0); return d;
   }
   let d = day ? new Date(day) : new Date(base);
   d.setHours(clock.hour, clock.minute, 0, 0);
@@ -157,16 +203,18 @@ const STAGE_ALIASES = {
 // Roman: poore shabd/phrase; Hindi: seedha includes. Yahan sirf tab pahunchte hain jab koi stage ka naam bola hi nahi.
 const ROM_COME = 'aayega|ayega|aaega|aega|aayegi|ayegi|aaegi|aegi|aayenge|ayenge|aaenge|aenge|aaunga|aunga|aaungi|aungi|aaoge|aaogi|pahunchega|pahunchegi|pahuchega|pahuchegi';
 const INTENTS = [
-  { stage: 'lost', rom: /\b(interested nahi|intrested nahi|nahi lena|nahi chahiye|nahi leni|mana kar diya|mana kar di|mana kiya|wrong number|galat number|band kar do|not interested|no interest|dead lead)\b/,
-    hi: ['इंटरेस्टेड नहीं', 'इंटरेस्ट नहीं', 'रुचि नहीं', 'नहीं लेना', 'नहीं चाहिए', 'मना कर दिया', 'मना कर दी', 'गलत नंबर', 'बंद कर दो'] },
-  { stage: 'hot lead', rom: /\b(pakka|pakki|confirm|order dega|order degi|order karega|order karegi|order dene|order de dega|ready to buy|ready hai|ready hain|lena hai|leni hai|kharidna|khareedna|pasand aaya|pasand aayi|pasand aa gaya|rate fix|bahut interested|very interested|full interested|jaldi chahiye)\b/,
-    hi: ['पक्का', 'ऑर्डर देगा', 'ऑर्डर देगी', 'ऑर्डर करेगा', 'ऑर्डर करेगी', 'लेना है', 'लेनी है', 'खरीदना', 'पसंद आया', 'पसंद आई', 'रेट फिक्स', 'बहुत इंटरेस्टेड', 'रेडी'] },
-  { stage: 'visit customer', rom: new RegExp('\\b(' + ROM_COME + '|visit|shop pe|shop par|dukan pe|dukan par|showroom|milne aa)\\b'),
-    hi: ['आएगा', 'आएगी', 'आयेगा', 'आयेगी', 'आएंगे', 'आयेंगे', 'आऊंगा', 'आऊंगी', 'आउंगा', 'आउंगी', 'आओगे', 'पहुंचेगा', 'पहुंचेगी', 'दुकान', 'शॉप', 'शोरूम', 'मिलने आ'] },
-  { stage: 'call back', rom: /\b(call karna|call karna hai|call karenge|call karunga|call karungi|call kar dena|phone karna|phone karenge|phone karunga|dobara call|dubara call|phir call|baad me call|baad mein call|phone nahi utha|call nahi utha|phone nahi uthaya|call nahi uthaya|not picking|no answer|switch off|not reachable|busy tha|busy thi|busy hai)\b/,
-    hi: ['कॉल करना', 'कॉल करें', 'कॉल करूंगा', 'कॉल करूंगी', 'फोन करना', 'फ़ोन करना', 'फोन करूंगा', 'दोबारा कॉल', 'दुबारा कॉल', 'फिर कॉल', 'बाद में कॉल', 'फोन नहीं उठाया', 'कॉल नहीं उठाया', 'फोन नहीं उठा', 'स्विच ऑफ', 'बिजी'] },
-  { stage: 'followup', rom: /\b(khud bata|khud bol|bata denge|bata dengi|bata dunga|bata dungi|batayenge|batayegi|bataenge|bolega|bolegi|bolenge|bola hai|boli hai|kaha hai|kaha tha|soch ke|soch kar|sochke|dekhte hain|dekhenge|dekh lenge|baad mein batayenge|let us know|will tell|get back)\b/,
-    hi: ['खुद बता', 'बता देंगे', 'बता देगा', 'बता देगी', 'बताएंगे', 'बोलेगा', 'बोलेगी', 'बोलेंगे', 'बोला है', 'बोली है', 'कहा है', 'सोच कर', 'सोचकर', 'देखते हैं', 'देखेंगे'] },
+  { stage: 'lost', rom: /\b(interested nahi|intrested nahi|nahi lena|nahi chahiye|nahi leni|mana kar diya|mana kar di|mana kiya|wrong number|galat number|band kar do|not interested|no interest|dead lead|zarurat nahi|zaroorat nahi|jarurat nahi|requirement nahi|dusre se le liya|kahin aur se|time pass|timepass|cancel|budget nahi|business band|retail nahi)\b/,
+    hi: ['इंटरेस्टेड नहीं', 'इंटरेस्ट नहीं', 'रुचि नहीं', 'नहीं लेना', 'नहीं चाहिए', 'मना कर दिया', 'मना कर दी', 'गलत नंबर', 'बंद कर दो', 'जरूरत नहीं', 'ज़रूरत नहीं', 'दूसरे से ले लिया', 'कैंसिल', 'बजट नहीं', 'टाइम पास'] },
+  { stage: 'hot lead', rom: /\b(pakka|pakki|confirm|order dega|order degi|order karega|order karegi|order dene|order de dega|ready to buy|ready hai|ready hain|lena hai|leni hai|kharidna|khareedna|pasand aaya|pasand aayi|pasand aa gaya|rate fix|bahut interested|very interested|full interested|jaldi chahiye|advance|payment kar|payment bhej|token|booking|book kar|final kar|sample pasand)\b/,
+    hi: ['पक्का', 'ऑर्डर देगा', 'ऑर्डर देगी', 'ऑर्डर करेगा', 'ऑर्डर करेगी', 'लेना है', 'लेनी है', 'खरीदना', 'पसंद आया', 'पसंद आई', 'रेट फिक्स', 'बहुत इंटरेस्टेड', 'रेडी', 'एडवांस', 'पेमेंट कर', 'पेमेंट भेज', 'बुकिंग', 'फाइनल कर', 'सैंपल पसंद'] },
+  { stage: 'visit customer', rom: new RegExp('\\b(' + ROM_COME + '|visit|shop pe|shop par|dukan pe|dukan par|showroom|milne aa|dekhne aa|maal dekhne|sample dekhne|nikal gaya|nikal gayi|pahunch)\\b'),
+    hi: ['आएगा', 'आएगी', 'आयेगा', 'आयेगी', 'आएंगे', 'आयेंगे', 'आऊंगा', 'आऊंगी', 'आउंगा', 'आउंगी', 'आओगे', 'पहुंचेगा', 'पहुंचेगी', 'दुकान', 'शॉप', 'शोरूम', 'मिलने आ', 'देखने आ', 'निकल गया', 'निकल गई'] },
+  { stage: 'call back', rom: /\b(call karna|call karna hai|call karenge|call karunga|call karungi|call kar dena|phone karna|phone karenge|phone karunga|dobara call|dubara call|phir call|baad me call|baad mein call|phone nahi utha|call nahi utha|phone nahi uthaya|call nahi uthaya|not picking|no answer|switch off|not reachable|busy tha|busy thi|busy hai|baat nahi hui|uthaya nahi|phone cut|call cut|phone band|number busy|line busy|out of coverage|reachable nahi|reply nahi|no reply|ring ja)\b/,
+    hi: ['कॉल करना', 'कॉल करें', 'कॉल करूंगा', 'कॉल करूंगी', 'फोन करना', 'फ़ोन करना', 'फोन करूंगा', 'दोबारा कॉल', 'दुबारा कॉल', 'फिर कॉल', 'बाद में कॉल', 'फोन नहीं उठाया', 'कॉल नहीं उठाया', 'फोन नहीं उठा', 'स्विच ऑफ', 'बिजी', 'बात नहीं हुई', 'उठाया नहीं', 'फोन कट', 'कॉल कट', 'फोन बंद', 'रिप्लाई नहीं'] },
+  { stage: 'video call', rom: /\b(video pe|video par|video pr|vc pe|vc par|video dikha|video mein dikha)\b/, hi: ['वीडियो पर', 'वीडियो पे', 'वीडियो में दिखा'] },
+  { stage: 'video call', rom: /\b(video pe|video par|video pr|vc pe|vc par|video dikha|video mein dikha)\b/, hi: ['वीडियो पर', 'वीडियो पे', 'वीडियो में दिखा'] },
+  { stage: 'followup', rom: /\b(khud bata|khud bol|bata denge|bata dengi|bata dunga|bata dungi|batayenge|batayegi|bataenge|bolega|bolegi|bolenge|bola hai|boli hai|kaha hai|kaha tha|soch ke|soch kar|sochke|dekhte hain|dekhenge|dekh lenge|baad mein batayenge|let us know|will tell|get back|catalogue bhej|catalog bhej|photo bhej|photos bhej|sample bhej|details bhej|rate bata|price bata|whatsapp pe|sochega|sochegi|sochenge|soch raha|soch rahi|baad mein baat|wait kar|intezaar|rate puch|price puch)\b/,
+    hi: ['खुद बता', 'बता देंगे', 'बता देगा', 'बता देगी', 'बताएंगे', 'बोलेगा', 'बोलेगी', 'बोलेंगे', 'बोला है', 'बोली है', 'कहा है', 'सोच कर', 'सोचकर', 'देखते हैं', 'देखेंगे', 'कैटलॉग भेज', 'कैटलोग भेज', 'फोटो भेज', 'डिटेल भेज', 'रेट बता', 'रेट पूछ', 'सोचेगा', 'सोचेगी', 'सोच रहा', 'सोच रही', 'इंतजार', 'इंतज़ार'] },
 ];
 
 /** Naam nahi bola — bole hue matlab se stage ka andaza. Return { name, available, inferred: true } ya null. */
