@@ -62,13 +62,13 @@ service cloud.firestore {
                               && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['sales_status']))
         || (isProvisioned() && role() == 'sales' && resource.data.sales_uid == request.auth.uid
                               && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['status', 'ldr_uid']))
+        // koi bhi provisioned user sirf bookkeeping fields badal sakta hai. status / sales_status / archived / outcome / owner jaise fields yahan NAHI —
+        // wo sirf owner / oversight, ya neeche ke re-inquiry raaste (urgent_at naya + is_urgent) se.
         || (isProvisioned() && request.resource.data.diff(resource.data).affectedKeys().hasOnly(
               ['is_urgent', 'urgent_at', 'reinq_open', 'next_followup', 'updated_at',
                'last_action_at', 'last_action_by', 'last_action_by_name',
                'sla_fresh_alerted', 'sla_followup_alerted', 'sla_followup_due_alerted',
-               'sla_contact_alerted', 'sla_sales_alerted',
-               'archived', 'archived_at', 'reinq_after_archive', 'reinq_after_archive_at', 'reinq_after_archive_count',
-               'status', 'sales_status', 'outcome', 'closed_at', 'sales_open']))
+               'sla_contact_alerted', 'sla_sales_alerted']))
         // Archived lead ko koi bhi provisioned user "dobara enquiry" ke roop me wapas la sakta hai
         // (WhatsApp campaign se reply aaya -> naya form bhardo). Sirf archived->unarchived path.
         || (isProvisioned()
@@ -161,13 +161,13 @@ service cloud.firestore {
 
     match /logs/{id} {
       allow read:   if isAdmin();
-      allow create: if isProvisioned();
+      allow create: if false;   // client kabhi nahi likhta (function Admin SDK se likh sakta hai)
       allow update, delete: if false;
     }
 
     match /audit/{id} {
       allow read:   if isAdmin() || (isProvisioned() && role() == 'md');
-      allow create: if isProvisioned();
+      allow create: if isProvisioned() && request.resource.data.get('uid', '') == request.auth.uid;   // kisi aur ke naam se audit entry nahi
       allow update, delete: if false;
     }
 

@@ -12,7 +12,14 @@ import { db, auth, EMU } from '../firebase';
 import { computeScore } from './scoring';
 import { revDigits } from './leads';
 
-const TEMP_PASSWORD = 'Paris@2026';
+// Har naye user ka alag RANDOM temp password (pehle sabka ek hi hardcoded tha jo public JS mein dikhta tha). Admin ko ek baar dikhta/copy hota hai;
+// user pehli login par apna badalta hai (must_reset_password).
+function genTempPassword() {
+  const A = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789';
+  const buf = new Uint32Array(10);
+  crypto.getRandomValues(buf);
+  return 'Pf' + Array.from(buf, (n) => A[n % A.length]).join('') + '#7';
+}
 
 // secondary app — naya Auth user banаte waqt admin ka session na tootе
 function secondaryAuth() {
@@ -69,7 +76,8 @@ export async function fetchAudit({ cursor = null, pageSize = 40, from = null, to
 /* ---------- USERS ---------- */
 export async function createUser({ full_name, email, phone, role, team = '' }, actor) {
   const sAuth = secondaryAuth();
-  const cred = await createUserWithEmailAndPassword(sAuth, email.trim().toLowerCase(), TEMP_PASSWORD);
+  const tempPassword = genTempPassword();
+  const cred = await createUserWithEmailAndPassword(sAuth, email.trim().toLowerCase(), tempPassword);
   const uid = cred.user.uid;
   await setDoc(doc(db, 'users', uid), {
     legacy_id: '', full_name, email: email.trim().toLowerCase(), phone: phone || '', role,
@@ -80,7 +88,7 @@ export async function createUser({ full_name, email, phone, role, team = '' }, a
   });
   await signOut(sAuth);
   await audit(actor, 'user.create', full_name || email, [], { note: `${email} · ${role}` });
-  return { uid, tempPassword: TEMP_PASSWORD };
+  return { uid, tempPassword };
 }
 
 export async function updateUser(uid, patch, oldUser, actor) {

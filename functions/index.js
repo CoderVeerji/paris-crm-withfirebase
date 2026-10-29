@@ -1034,7 +1034,8 @@ exports.adminTask = onDocumentWritten('admin_tasks/{taskId}', async (event) => {
       if (!uid || pw.length < 6) throw new Error('uid aur kam se kam 6 character ka password chahiye');
       await admin.auth().updateUser(uid, { password: pw });
       await db.doc('users/' + uid).set({ must_reset_password: false, updated_at: FV.serverTimestamp() }, { merge: true });
-      await db.doc('user_secrets/' + uid).set({ password: pw, set_at: FV.serverTimestamp() }, { merge: true });
+      // password kahin store nahi: na user_secrets mein, aur admin_tasks doc se bhi turant hata do
+      await ref.set({ new_password: FV.delete() }, { merge: true });
       result = { uid };
     }
     else if (id === 'user_status') {
@@ -1843,6 +1844,7 @@ async function cacheAiAnswer(question, answer, role) {
   } catch (err) { console.error('cacheAiAnswer', err.message || err); return null; }
 }
 
+const HELP_LIMIT_PER_HOUR = 20; // ek user ke liye Ask-AI sawaal / ghanta
 exports.helpAsk = onDocumentWritten('help_queries/{id}', async (event) => {
   const before = event.data && event.data.before && event.data.before.exists ? event.data.before.data() : null;
   const after = event.data && event.data.after && event.data.after.exists ? event.data.after.data() : null;
@@ -1865,14 +1867,38 @@ exports.helpAsk = onDocumentWritten('help_queries/{id}', async (event) => {
   if (after.status !== 'pending') return;
   const ref = event.data.after.ref;
   try {
+    // client ke bheje role / history par bharosa nahi: role users/{uid} se, sawaal 1000 char tak, history saaf; har user ke liye ghante ki limit (paid AI)
+    const uid = String(after.by_uid || '');
+    const urec = uid ? (await db.doc('users/' + uid).get()).data() : null;
+    if (!urec || urec.status === 'inactive') {
+      await ref.set({ status: 'error', answer: 'Not allowed.', answered_at: FV.serverTimestamp() }, { merge: true });
+      return;
+    }
+    const role = String(urec.role || '');
+    const question = String(after.question || '').trim().slice(0, 1000);
+    try {
+      const rl = db.doc('help_rate/' + uid);
+      const okRate = await db.runTransaction(async (tx) => {
+        const s = await tx.get(rl); const d = s.exists ? s.data() : {}; const now = Date.now();
+        const fresh = !d.start || now - d.start > 3600000;
+        const n = fresh ? 1 : (d.n || 0) + 1;
+        tx.set(rl, { start: fresh ? now : d.start, n });
+        return n <= HELP_LIMIT_PER_HOUR;
+      });
+      if (!okRate) {
+        await ref.set({ status: 'error', answer: 'You have asked many questions in the last hour — please try again a little later, or raise a ticket below.', answered_at: FV.serverTimestamp() }, { merge: true });
+        return;
+      }
+    } catch (e) { console.error('help rate-limit check failed (allowing)', e.message || e); }
     const secret = (await db.doc('config/ai_secret').get()).data() || {};
     const key = secret.api_key || secret.anthropic_key;
     if (!key) {
       await ref.set({ status: 'error', answer: 'AI is not set up yet — please raise a ticket and the admin will help.', answered_at: FV.serverTimestamp() }, { merge: true });
       return;
     }
-    const hist = Array.isArray(after.history) ? after.history : [];
-    const { hits, qTokens } = await searchKbScored(after.question);
+    const hist = (Array.isArray(after.history) ? after.history : []).slice(-6)
+      .map((m) => ({ role: m && m.role === 'assistant' ? 'assistant' : 'user', content: String((m && m.content) || '').slice(0, 1200) }));
+    const { hits, qTokens } = await searchKbScored(question);
 
     // ── Fast path: pehle se answered near-exact sawaal -> AI call skip ──
     // (sirf fresh sawaal par — follow-up me context chahiye. `bad`-flagged entries
@@ -1890,11 +1916,11 @@ exports.helpAsk = onDocumentWritten('help_queries/{id}', async (event) => {
 
     const answer = await callAI({
       provider: secret.provider || (secret.anthropic_key ? 'anthropic' : 'nvidia'),
-      key, model: secret.model, role: after.role, question: after.question,
+      key, model: secret.model, role, question,
       history: hist, kb: hits.filter((h) => !isPunt(h.a)).slice(0, 3),
     });
     // fresh sawaal ho to jawab cache karo (training). follow-up cache nahi karte.
-    const cacheId = hist.length ? null : await cacheAiAnswer(after.question, answer, after.role);
+    const cacheId = hist.length ? null : await cacheAiAnswer(question, answer, role);
     await ref.set({
       status: 'done', answer, from_kb: hits.length, served: 'ai',
       ...(cacheId ? { cache_id: cacheId } : {}),

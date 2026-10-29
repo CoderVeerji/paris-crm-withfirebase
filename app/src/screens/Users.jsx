@@ -160,12 +160,7 @@ function UserSheet({ user, allUsers, actor, t, onClose, onSaved }) {
   const [known, setKnown] = useState(null); // { password, set_at } | null
   const [showPw, setShowPw] = useState(false);
   const [newPw, setNewPw] = useState('');
-  useEffect(() => {
-    if (isNew) return undefined;
-    let alive = true;
-    getDoc(doc(db, 'user_secrets', user.id)).then((s) => { if (alive && s.exists()) setKnown(s.data()); }).catch(() => {});
-    return () => { alive = false; };
-  }, [isNew, user?.id]);
+  // (password ab server par store nahi hota — sirf set karte waqt, isi screen par ek baar dikhta/copy hota hai)
 
   async function doSetPassword() {
     const pw = newPw.trim();
@@ -191,6 +186,7 @@ function UserSheet({ user, allUsers, actor, t, onClose, onSaved }) {
       const teamVal = role === 'tl' ? team : '';
       if (isNew) {
         const { tempPassword } = await createUser({ full_name, email, phone, role, team: teamVal }, actor);
+        try { await navigator.clipboard.writeText(tempPassword); } catch { /* copy na ho to toast mein dikhega hi */ }
         toast(`${t('uCreate')} ✓ — ${tempPassword}`);
       } else {
         // pehle baaki fields save karo — taaki login-email badalna fail bhi ho jaye
