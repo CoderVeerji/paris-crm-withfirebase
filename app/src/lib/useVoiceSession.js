@@ -7,6 +7,24 @@ const SR = typeof window !== 'undefined' ? (window.SpeechRecognition || window.w
 export const SILENCE_MS = 2500;
 export const voiceSupported = () => !!(typeof window !== 'undefined' && (window.SpeechRecognition || window.webkitSpeechRecognition));
 
+// Android Chrome (continuous) kabhi har naye shabd par poora cumulative text alag "final" result bana deta hai
+// ("kal" / "kal party" / "kal party aane") ya interim mein final wala hissa phir se bhej deta hai -> text do-teen baar likhta tha.
+// joinText: b agar a ko hi aage badha raha hai to sirf b; a ke aakhri shabd b ke pehle shabdon se milte hon to wo overlap hata kar jodta hai.
+const wnorm = (x) => String(x || '').toLowerCase().replace(/[.,!?।]+/g, ' ').replace(/\s+/g, ' ').trim();
+export function joinText(a, b) {
+  a = String(a || '').replace(/\s+/g, ' ').trim(); b = String(b || '').replace(/\s+/g, ' ').trim();
+  if (!a) return b; if (!b) return a;
+  const na = wnorm(a); const nb = wnorm(b);
+  if (nb === na || na.endsWith(' ' + nb) || na === nb) return a;
+  if (nb.startsWith(na + ' ') || nb.startsWith(na)) return b;   // b = a + aage ka (cumulative)
+  const aw = a.split(' '); const bw = b.split(' ');
+  for (let k = Math.min(aw.length, bw.length, 12); k >= 1; k--) {  // a ke aakhri k shabd == b ke pehle k shabd
+    if (aw.slice(-k).map(wnorm).join(' ') === bw.slice(0, k).map(wnorm).join(' ')) return aw.concat(bw.slice(k)).join(' ');
+  }
+  return a + ' ' + b;
+}
+const joinAll = (parts) => parts.reduce((acc, t) => joinText(acc, t), '');
+
 const LANG_KEY = 'pc_voice_lang';
 export const readVoiceLang = (appLang) => { try { const v = localStorage.getItem(LANG_KEY); if (v) return v; } catch { /* ignore */ } return appLang === 'en' ? 'en-IN' : 'hi-IN'; };
 export const saveVoiceLang = (l) => { try { localStorage.setItem(LANG_KEY, l); } catch { /* ignore */ } };
@@ -24,6 +42,7 @@ export function useVoiceSession({ lang, onUpdate, onComplete, onError }) {
   const [text, setText] = useState('');
   const recRef = useRef(null);
   const finalRef = useRef('');
+  const baseRef = useRef('');             // pehle ke (band ho chuke) recognition instances ka text
   const interimRef = useRef('');
   const stateRef = useRef('idle');
   const stopReason = useRef('');           // 'complete' | 'pause' | 'cancel' | ''
@@ -34,7 +53,7 @@ export function useVoiceSession({ lang, onUpdate, onComplete, onError }) {
 
   const set = (s) => { stateRef.current = s; setState(s); };
   const clearTimer = () => { if (silenceTimer.current) { clearTimeout(silenceTimer.current); silenceTimer.current = null; } };
-  const full = () => `${finalRef.current} ${interimRef.current}`.replace(/\s+/g, ' ').trim();
+  const full = () => joinText(finalRef.current, interimRef.current);
 
   const finalize = useCallback(() => {
     clearTimer();
@@ -48,6 +67,7 @@ export function useVoiceSession({ lang, onUpdate, onComplete, onError }) {
   const spawn = useCallback(() => {
     if (!SR) return;
     const rec = new SR();
+    baseRef.current = finalRef.current;
     rec.lang = cb.current.lang; rec.interimResults = true; rec.continuous = true; rec.maxAlternatives = 1;
     rec.onaudiostart = () => { if (mine() && (stateRef.current === 'idle' || stateRef.current === 'paused')) set('wait'); };
     const mine = () => recRef.current === rec; // band ho chuke purane instance ke dair se aaye events ignore
@@ -56,13 +76,14 @@ export function useVoiceSession({ lang, onUpdate, onComplete, onError }) {
     rec.onresult = (e) => {
       if (!mine()) return;
       retries.current = 0;
-      let fin = ''; let interim = '';
-      for (let i = e.resultIndex; i < e.results.length; i++) {
+      // poori list se is instance ka text dobara banate hain (resultIndex se jodne par repeat events duplicate karte the)
+      const fins = []; const ints = [];
+      for (let i = 0; i < e.results.length; i++) {
         const r = e.results[i]; const t = r[0]?.transcript || '';
-        if (r.isFinal) fin += t; else interim += t;
+        if (r.isFinal) fins.push(t); else ints.push(t);
       }
-      if (fin) finalRef.current = `${finalRef.current} ${fin}`.replace(/\s+/g, ' ').trim();
-      interimRef.current = interim.trim();
+      finalRef.current = joinText(baseRef.current, joinAll(fins));
+      interimRef.current = joinAll(ints).trim();
       hear();
       const all = full(); setText(all); cb.current.onUpdate?.(all);
       // engine speechend na bheje (kuch phones) to bhi: kuch der koi naya shabd na aaye -> quiet -> complete
