@@ -6,6 +6,7 @@ const DEV = {
 };
 // Devanagari shabdon ko pehle Roman mein badlo (JS ka \b Devanagari ke saath kaam nahi karta)
 const DEVWORDS = [
+  ['तारीख', 'tarikh'], ['तारिख', 'tarikh'], ['तरीख', 'tarikh'],
   ['परसों', 'parso'], ['परसो', 'parso'], ['अगले हफ्ते', 'agle hafte'], ['अगले सप्ताह', 'agle hafte'], ['आज', 'aaj'], ['कल', 'kal'], ['सुबह', 'subah'], ['दोपहर', 'dopahar'],
   ['शाम', 'shaam'], ['रात', 'raat'], ['बजे', 'baje'], ['मिनट', 'minute'], ['घंटे', 'ghante'], ['घंटा', 'ghanta'], ['बाद', 'baad'], ['दिन', 'din'], ['हफ्ते', 'hafte'],
   ['आधा', 'aadha'], ['डेढ़', 'dedh'], ['डेढ', 'dedh'], ['ढाई', 'dhai'], ['सवा', 'sava'], ['साढ़े', 'saade'], ['साढे', 'saade'], ['पौने', 'paune'],
@@ -84,6 +85,22 @@ function parseRelative(t, now) {
   return null;
 }
 
+/** "4 tarikh ko", "4 tarik", "28 date", "tarikh 4" -> mahine ka din. Aaj ya aage ka aane wala wahi tarikh; nikal chuki ho to agle mahine ki. */
+function parseDayOfMonth(t, base) {
+  const m = t.match(/\b(\d{1,2})(?:st|nd|rd|th)?\s*(?:tarikh|tarik|tareekh|taarikh|date)\b/) || t.match(/\b(?:tarikh|tarik|tareekh|taarikh|date)\s*(\d{1,2})\b/);
+  if (!m) return null;
+  const n = +m[1];
+  if (n < 1 || n > 31) return null;
+  for (let k = 0; k < 13; k++) {                       // 31 tarikh wale din ke bina mahine skip
+    const d = new Date(base.getFullYear(), base.getMonth() + k, n);
+    if (d.getDate() === n && d.getTime() >= base.getTime()) return d;
+  }
+  return null;
+}
+
+/** Jab sirf din bola ho (time nahi) — us din subah 11:00 baje. */
+export const DEFAULT_FOLLOWUP_HOUR = 11;
+
 /** @returns {Date | null} — bole hue text se agla follow-up (local time) */
 export function parseFollowup(text, now = new Date()) {
   const t = norm(text);
@@ -100,6 +117,7 @@ export function parseFollowup(text, now = new Date()) {
   else if (W.tomorrow.test(t)) day = addDays(1);
   else if (W.nextWeek.test(t)) day = addDays(7);
   else if (rel && rel.date) day = new Date(new Date(rel.date).setHours(0, 0, 0, 0));
+  else if (parseDayOfMonth(t, base)) day = parseDayOfMonth(t, base);
   else if (W.today.test(t)) day = addDays(0);
   else {
     for (const [wd, re] of WEEKDAYS) { if (re.test(t)) { let diff = (wd - now.getDay() + 7) % 7; if (diff === 0) diff = 7; day = addDays(diff); break; } }
@@ -107,8 +125,8 @@ export function parseFollowup(text, now = new Date()) {
 
   const clock = parseClock(t);
   if (!day && !clock) return null;
-  if (!clock) { // sirf din bola — 11:00 default? nahi: din ke liye 10:00 AM suggest karte hain
-    const d = new Date(day); d.setHours(10, 0, 0, 0); return d;
+  if (!clock) { // sirf din bola (time nahi) — us din subah 11:00 baje
+    const d = new Date(day); d.setHours(DEFAULT_FOLLOWUP_HOUR, 0, 0, 0); return d;
   }
   let d = day ? new Date(day) : new Date(base);
   d.setHours(clock.hour, clock.minute, 0, 0);
