@@ -307,22 +307,7 @@ export async function workSplitStats(args) {
     if (!allIds.length) return { scheduled: emptyBucket(), offSchedule: emptyBucket() };
 
     const leadMap = {};
-    for (let i = 0; i < allIds.length; i += 30) {
-      const chunk = allIds.slice(i, i + 30);
-      try {
-        // eslint-disable-next-line no-await-in-loop
-        const s = await getDocs(query(collection(db, 'leads'), where(documentId(), 'in', chunk)));
-        s.forEach((d) => { leadMap[d.id] = { id: d.id, ...d.data() }; });
-      } catch {
-        // eslint-disable-next-line no-await-in-loop
-        await Promise.all(chunk.map(async (id) => {
-          try {
-            const one = await getDocs(query(collection(db, 'leads'), where(documentId(), '==', id)));
-            one.forEach((d) => { leadMap[d.id] = { id: d.id, ...d.data() }; });
-          } catch { /* not readable — skip */ }
-        }));
-      }
-    }
+    (await fetchLeadsByIds(allIds)).forEach((d) => { leadMap[d.id] = { id: d.id, ...d.data }; });
 
     const isSales = teamRole === 'sales';
     const sched = emptyBucket(); const off = emptyBucket();
@@ -397,14 +382,39 @@ export async function fetchLiveFresh(teamRole, from, to) {
     where(tsField, '>=', dayStart(from)), where(tsField, '<=', dayEnd(to)), orderBy(tsField, 'asc'), fbLimit(LIVE_FRESH_CAP + 1)));
   if (snap.size > LIVE_FRESH_CAP) return null;
   const out = [];
-  snap.forEach((d) => {
-    const l = d.data(); const uid = l[ownerField];
-    if (!uid || l.archived) return;
-    const st = String(l.status || '').toLowerCase().trim(); const ss = String(l.sales_status || '').toLowerCase().trim();
-    const pending = isSales ? (st === 'qualified' && ['', 'qualified', 'fresh', 'new'].includes(ss)) : ['fresh', 'new'].includes(st);
-    out.push({ id: d.id, uid, pending, stage: (isSales ? (ss || st) : st) || 'other' });
-  });
+  snap.forEach((d) => { const r = freshRow(isSales, d.id, d.data(), ownerField); if (r) out.push(r); });
   return out;
+}
+
+/** Ek lead -> Fresh section ki row { id, uid, pending, stage } (archived / owner-bina = null). Admin aur personal dono isi se. */
+function freshRow(isSales, id, l, ownerField) {
+  const uid = l[ownerField];
+  if (!uid || l.archived) return null;
+  const st = String(l.status || '').toLowerCase().trim(); const ss = String(l.sales_status || '').toLowerCase().trim();
+  const pending = isSales ? (st === 'qualified' && ['', 'qualified', 'fresh', 'new'].includes(ss)) : ['fresh', 'new'].includes(st);
+  return { id, uid, pending, stage: (isSales ? (ss || st) : st) || 'other' };
+}
+
+/** LDR/Sales ke apne dashboard ke liye fetchLiveFresh ka version — unscoped range query unko rules deny karte hain, isliye
+ *  OWNER-scoped query (LDR: created_at — index maujood; Sales: assigned_sales_at — composite index sales_uid+assigned_sales_at chahiye).
+ *  Index abhi bana nahi / koi aur dikkat ho to: pre-agg se mili known lead-ids (candIds) ko getDoc se live check — numbers wahi, bas thoda zyada reads.
+ *  Return [{ id, uid, pending, stage }] ya null (cap se zyada). */
+export async function fetchLiveFreshPersonal(teamRole, uid, from, to, candIds = []) {
+  const isSales = teamRole === 'sales';
+  const tsField = isSales ? 'assigned_sales_at' : 'created_at';
+  const ownerField = isSales ? 'sales_uid' : 'ldr_uid';
+  try {
+    const snap = await getDocs(query(collection(db, 'leads'), where(ownerField, '==', uid),
+      where(tsField, '>=', dayStart(from)), where(tsField, '<=', dayEnd(to)), orderBy(tsField, 'asc'), fbLimit(LIVE_FRESH_CAP + 1)));
+    if (snap.size > LIVE_FRESH_CAP) return null;
+    const out = [];
+    snap.forEach((d) => { const r = freshRow(isSales, d.id, d.data(), ownerField); if (r) out.push(r); });
+    return out;
+  } catch {
+    const ids = [...new Set(candIds)];
+    if (ids.length > LIVE_FRESH_CAP) return null;
+    return (await fetchLeadsByIds(ids)).map((d) => freshRow(isSales, d.id, d.data, ownerField)).filter((r) => r && r.uid === uid);
+  }
 }
 
 /** MECA ke cards (date-range): is range mein har member ko kitni leads MILI aur unme se abhi kitni pending.
@@ -465,6 +475,28 @@ export function memberLeadCounts(teamRole, uids) {
  *  opts.sinceMs: range mein aaj shaamil ho to pre-agg ka aaj wala hissa ~90 min purana hota hai — jis lead pe uske baad (range shuru
  *  hone ke baad) koi bhi kaam hua (last_action_at >= sinceMs) wo ab pending nahi. Yahi dashboard ka "live pending" hai. */
 export const LIVE_RECHECK_CAP = 600;
+
+/** Lead docs ids se. Pehle documentId-'in' query (sasti, 30 ids/query). LDR/Sales ke liye rules ye query deny karte hain
+ *  (rule lead ke owner par tiki hai, query se prove nahi hota) — tab har id ko getDoc (get rule owner ko deta hai).
+ *  Jo lead padhi nahi ja sakti (ab user ki nahi / delete) wo result mein nahi aati. Return: [{ id, data }] */
+export async function fetchLeadsByIds(ids) {
+  const out = [];
+  for (let i = 0; i < ids.length; i += 30) {
+    const chunk = ids.slice(i, i + 30);
+    try {
+      // eslint-disable-next-line no-await-in-loop
+      const s = await getDocs(query(collection(db, 'leads'), where(documentId(), 'in', chunk)));
+      s.forEach((d) => out.push({ id: d.id, data: d.data() }));
+    } catch (e) {
+      if (e && e.code && e.code !== 'permission-denied') throw e;
+      // eslint-disable-next-line no-await-in-loop
+      await Promise.all(chunk.map(async (id) => {
+        try { const one = await getDoc(doc(db, 'leads', id)); if (one.exists()) out.push({ id, data: one.data() }); } catch (e2) { if (e2 && e2.code && e2.code !== 'permission-denied') throw e2; }
+      }));
+    }
+  }
+  return out;
+}
 export async function laterClearedIds(ids, endDay, opts = {}) {
   const { teamRole = '', afterEnd = true, sinceMs = null, sinceMap = null, timeLogic = true, info = null, stages = null } = opts;
   const list = [...new Set(ids)];
@@ -472,12 +504,10 @@ export async function laterClearedIds(ids, endDay, opts = {}) {
   if (list.length > LIVE_RECHECK_CAP) return null;
   const endMs = dayEnd(endDay).getTime();
   const cleared = new Set(); const seen = new Set();
-  const chunks = [];
-  for (let i = 0; i < list.length; i += 30) chunks.push(list.slice(i, i + 30));
-  const snaps = await Promise.all(chunks.map((c) => getDocs(query(collection(db, 'leads'), where(documentId(), 'in', c)))));
-  snaps.forEach((sn) => sn.forEach((d) => {
+  const fetched = await fetchLeadsByIds(list);
+  fetched.forEach((d) => {
     seen.add(d.id);
-    const l = d.data();
+    const l = d.data;
     const la = l.last_action_at?.toMillis ? l.last_action_at.toMillis() : 0;
     const notSales = teamRole === 'sales' && String(l.status || '').toLowerCase() !== 'qualified';
     if (stages) stages[d.id] = String((teamRole === 'sales' ? l.sales_status : l.status) || '').toLowerCase().trim() || 'other';
@@ -488,15 +518,17 @@ export async function laterClearedIds(ids, endDay, opts = {}) {
       // info: aaj wali range mein "kaam ho gaya" (pending nahi) leads — dashboard unhe Worked mein current stage ke saath ginta hai
       if (info) info[d.id] = { worked: workedSince && !l.archived && !notSales, stage: String((teamRole === 'sales' ? l.sales_status : l.status) || '').toLowerCase().trim() || 'other' };
     }
-  }));
+  });
   list.forEach((id) => { if (!seen.has(id)) cleared.add(id); }); // delete/recycle ho chuki
   return cleared;
 }
 
 export async function getDashRange(args) {
   const { teamRole, memberUid, memberIds, from, to } = args;
+  // personal = LDR/Sales apna dashboard: stats_daily (poori team ka data) padhne ki permission nahi -> apna stats_daily/{din}/by_uid/{uid}
+  const personal = !!args.personal && !!memberUid;
   const liveTtl = to >= istDay() ? 3 * 60 * 1000 : 20 * 60 * 1000; // aaj wali range ~live (3 min), sirf purani dates 20 min
-  return cached(`pc_dashrange6_${teamRole}_${memberUid || 't'}_${from}_${to}`, async () => {
+  return cached(`pc_dashrange7_${personal ? 'p' : 'a'}_${teamRole}_${memberUid || 't'}_${from}_${to}`, async () => {
     const today = istDay();
     const days = daysBetween(from, to).filter((d) => d <= today);
     const wantToday = days.includes(today);
@@ -526,13 +558,13 @@ export async function getDashRange(args) {
     };
 
     // Fresh section ke liye LIVE ginti (saath-saath fetch) — chhoti range (<=62 din) mein; warna purana snapshot-path
-    const liveFreshP = days.length && days.length <= 62 ? fetchLiveFresh(teamRole, days[0], days[days.length - 1]).catch(() => null) : Promise.resolve(null);
+    const liveFreshP = days.length && days.length <= 62 && !personal ? fetchLiveFresh(teamRole, days[0], days[days.length - 1]).catch(() => null) : Promise.resolve(null);
 
     // PURANE din — pre-agg `stats_daily/{date}.dash` se (1 read/din)
-    const snaps = await Promise.all(pastDays.map((d) => getDoc(doc(db, 'stats_daily', d))));
+    const snaps = await Promise.all(pastDays.map((d) => getDoc(personal ? doc(db, 'stats_daily', d, 'by_uid', memberUid) : doc(db, 'stats_daily', d))));
     snaps.forEach((s, si) => {
-      if (!s.exists() || !s.data().dash) { capped = true; return; }
-      const dd = s.data().dash[key];
+      if (!s.exists() || !s.data().dash) { if (!personal) capped = true; return; } // personal: us din user ka doc nahi = koi kaam nahi
+      const dd = personal ? s.data().dash : s.data().dash[key];
       if (!dd) return;
       for (const bk of DASH_BK) {
         const src = dd[bk] || {};
@@ -609,7 +641,8 @@ export async function getDashRange(args) {
     }
 
     // FRESH = LIVE: abhi ki lead se. Pending = ab bhi untouched; kaam ho chuki lead Worked (abhi ke stage ke saath).
-    const lf = await liveFreshP;
+    let lf = await liveFreshP;
+    if (!lf && personal && days.length && days.length <= 62) lf = await fetchLiveFreshPersonal(teamRole, memberUid, days[0], days[days.length - 1], [...M.fresh.work, ...M.fresh.pend]).catch(() => null);
     if (lf) {
       const oldHits = M.fresh.hits;
       const uidSet = memberUid ? new Set([memberUid]) : (memberIds && memberIds.length ? new Set(memberIds) : null);
@@ -742,8 +775,7 @@ export async function dashDayLive({ teamRole, memberUid, memberIds }, dayStr) {
     if (!chunk.length) continue;
     try {
       // eslint-disable-next-line no-await-in-loop
-      const qs = await getDocs(query(collection(db, 'leads'), where(documentId(), 'in', chunk)));
-      qs.forEach((d) => { leadMap[d.id] = { id: d.id, ...d.data() }; });
+      (await fetchLeadsByIds(chunk)).forEach((d) => { leadMap[d.id] = { id: d.id, ...d.data }; });
     } catch { /* skip */ }
   }
   for (const id of candIds) {

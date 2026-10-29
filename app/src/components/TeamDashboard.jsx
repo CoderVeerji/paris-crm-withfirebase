@@ -200,7 +200,7 @@ export default function TeamDashboard({ mode, role, uid, team = '', onOpenLead }
     let alive = true;
     setB1(null); setB2(null); setB3(null); setB5(null); setWorkload(null);
     setSources([]); setStates([]); setOpenCard(null);
-    const args = { teamRole, memberUid: memberUid || null, memberIds };
+    const args = { teamRole, memberUid: memberUid || null, memberIds, personal: !isAdmin };
 
     // 4 section cards — RANGE ke liye nightly pre-computed `stats_daily` se (+ aaj LIVE).
     // Har load ~4000 reads ki jagah ~7-10. Card click par drill-down LIVE query karega.

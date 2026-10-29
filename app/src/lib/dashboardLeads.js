@@ -6,7 +6,7 @@ import {
 import { db } from '../firebase';
 import { dayStart, dayEnd } from './daterange';
 import { ownedBy } from './leadStage';
-import { workSplitStats } from './dashboardStats';
+import { workSplitStats, fetchLeadsByIds } from './dashboardStats';
 
 const PAGE_SIZE = 20;
 
@@ -128,19 +128,7 @@ export async function fetchDashLeadsAll({ teamRole, memberUid, memberIds, filter
   if (filter.kind === 'ids') {
     const ids = (filter.ids || []).slice(0, cap);
     if (!ids.length) return { rows: [], capped: false };
-    const out = [];
-    for (let i = 0; i < ids.length; i += 30) {
-      try {
-        // eslint-disable-next-line no-await-in-loop
-        const s = await getDocs(query(collection(db, 'leads'), where(documentId(), 'in', ids.slice(i, i + 30))));
-        s.forEach((d) => out.push({ id: d.id, ...d.data() }));
-      } catch {
-        // eslint-disable-next-line no-await-in-loop
-        await Promise.all(ids.slice(i, i + 30).map(async (id) => {
-          try { const one = await getDocs(query(collection(db, 'leads'), where(documentId(), '==', id))); one.forEach((d) => out.push({ id: d.id, ...d.data() })); } catch { /* skip */ }
-        }));
-      }
-    }
+    const out = (await fetchLeadsByIds(ids)).map((d) => ({ id: d.id, ...d.data }));
     let rows = out.filter((l) => !l.archived);
     const sel = filter.bucketSel;
     const tr = filter.teamRole || teamRole;

@@ -563,6 +563,20 @@ async function aggregateDay(dayStr) {
     dash,
   });
 
+  // Har user ka apna chhota doc — LDR/Sales ko stats_daily padhne ki permission nahi (usme poori team ka data hai),
+  // isliye unke dashboard ke purane din ye doc padhte hain (rules: sirf apna). Aaj ka din skip (personal dashboard aaj LIVE padhta hai).
+  if (dayStr !== istDay(Date.now())) {
+    try {
+      const wb = db.batch(); let n = 0;
+      for (const [k, v] of Object.entries(dash)) {
+        if (k.startsWith('_')) continue;
+        wb.set(db.doc(`stats_daily/${dayStr}/by_uid/${k}`), { uid: k, date: dayStr, dash: v, computed_at: FV.serverTimestamp() });
+        n += 1;
+      }
+      if (n) await wb.commit();
+    } catch (e) { console.error('by_uid write failed', dayStr, e.message); }
+  }
+
   return { dayStr, totals, cohort, byUser };
 }
 

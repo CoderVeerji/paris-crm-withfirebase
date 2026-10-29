@@ -130,6 +130,11 @@ service cloud.firestore {
     }
 
     match /stats_daily/{id}    { allow read: if isOversight(); allow write: if false; }
+    // har user ka apna dash (LDR/Sales ke personal dashboard ke purane din) — sirf wo khud (ya oversight) padhe, likhna sirf server
+    match /stats_daily/{day}/by_uid/{uid} {
+      allow read: if isOversight() || (isProvisioned() && request.auth.uid == uid);
+      allow write: if false;
+    }
     match /stats_cohort/{id}   { allow read: if isOversight(); allow write: if false; }
     match /reports_weekly/{id} { allow read: if isOversight(); allow write: if false; }
 
