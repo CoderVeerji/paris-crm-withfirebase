@@ -147,10 +147,37 @@ const STAGE_ALIASES = {
   'visit customer': ['visit customer', 'visit', 'विजिट', 'विज़िट', 'दुकान पर आएगा', 'shop pe aayega', 'shop par aayega'],
   'hot lead': ['hot lead', 'hot', 'हॉट लीड', 'हॉट'],
   'video call': ['video call', 'वीडियो कॉल', 'वीडियो'],
-  'order done': ['order done', 'order mila', 'order final', 'order confirm', 'ऑर्डर मिल', 'ऑर्डर फाइनल', 'ऑर्डर कन्फर्म', 'ऑर्डर डन'],
+  'order done': ['order done', 'order mila', 'order mil gaya', 'order mil gayi', 'order ho gaya', 'order ho gayi', 'order lag gaya', 'order final', 'order confirm', 'ऑर्डर मिल', 'ऑर्डर फाइनल', 'ऑर्डर कन्फर्म', 'ऑर्डर डन'],
   lost: ['lost', 'not interested', 'interested nahi', 'nahi chahiye', 'लॉस्ट', 'रुचि नहीं', 'नहीं चाहिए', 'इंटरेस्टेड नहीं'],
   qualified: ['qualified', 'qualify', 'क्वालिफाइड', 'क्वालिफाई'],
 };
+
+// Stage ka naam NAHI bola, par matlab se samajh aata hai (jaise "parso aayegi" = visit). Pehle match jeetta hai, is order mein:
+// lost > hot lead > visit > call back > followup. 'qualified' (hand-off) aur 'order done' (paisa) kabhi matlab se nahi lagte — sirf naam bolne par.
+// Roman: poore shabd/phrase; Hindi: seedha includes. Yahan sirf tab pahunchte hain jab koi stage ka naam bola hi nahi.
+const ROM_COME = 'aayega|ayega|aaega|aega|aayegi|ayegi|aaegi|aegi|aayenge|ayenge|aaenge|aenge|aaunga|aunga|aaungi|aungi|aaoge|aaogi|pahunchega|pahunchegi|pahuchega|pahuchegi';
+const INTENTS = [
+  { stage: 'lost', rom: /\b(interested nahi|intrested nahi|nahi lena|nahi chahiye|nahi leni|mana kar diya|mana kar di|mana kiya|wrong number|galat number|band kar do|not interested|no interest|dead lead)\b/,
+    hi: ['इंटरेस्टेड नहीं', 'इंटरेस्ट नहीं', 'रुचि नहीं', 'नहीं लेना', 'नहीं चाहिए', 'मना कर दिया', 'मना कर दी', 'गलत नंबर', 'बंद कर दो'] },
+  { stage: 'hot lead', rom: /\b(pakka|pakki|confirm|order dega|order degi|order karega|order karegi|order dene|order de dega|ready to buy|ready hai|ready hain|lena hai|leni hai|kharidna|khareedna|pasand aaya|pasand aayi|pasand aa gaya|rate fix|bahut interested|very interested|full interested|jaldi chahiye)\b/,
+    hi: ['पक्का', 'ऑर्डर देगा', 'ऑर्डर देगी', 'ऑर्डर करेगा', 'ऑर्डर करेगी', 'लेना है', 'लेनी है', 'खरीदना', 'पसंद आया', 'पसंद आई', 'रेट फिक्स', 'बहुत इंटरेस्टेड', 'रेडी'] },
+  { stage: 'visit customer', rom: new RegExp('\\b(' + ROM_COME + '|visit|shop pe|shop par|dukan pe|dukan par|showroom|milne aa)\\b'),
+    hi: ['आएगा', 'आएगी', 'आयेगा', 'आयेगी', 'आएंगे', 'आयेंगे', 'आऊंगा', 'आऊंगी', 'आउंगा', 'आउंगी', 'आओगे', 'पहुंचेगा', 'पहुंचेगी', 'दुकान', 'शॉप', 'शोरूम', 'मिलने आ'] },
+  { stage: 'call back', rom: /\b(call karna|call karna hai|call karenge|call karunga|call karungi|call kar dena|phone karna|phone karenge|phone karunga|dobara call|dubara call|phir call|baad me call|baad mein call|phone nahi utha|call nahi utha|phone nahi uthaya|call nahi uthaya|not picking|no answer|switch off|not reachable|busy tha|busy thi|busy hai)\b/,
+    hi: ['कॉल करना', 'कॉल करें', 'कॉल करूंगा', 'कॉल करूंगी', 'फोन करना', 'फ़ोन करना', 'फोन करूंगा', 'दोबारा कॉल', 'दुबारा कॉल', 'फिर कॉल', 'बाद में कॉल', 'फोन नहीं उठाया', 'कॉल नहीं उठाया', 'फोन नहीं उठा', 'स्विच ऑफ', 'बिजी'] },
+  { stage: 'followup', rom: /\b(khud bata|khud bol|bata denge|bata dengi|bata dunga|bata dungi|batayenge|batayegi|bataenge|bolega|bolegi|bolenge|bola hai|boli hai|kaha hai|kaha tha|soch ke|soch kar|sochke|dekhte hain|dekhenge|dekh lenge|baad mein batayenge|let us know|will tell|get back)\b/,
+    hi: ['खुद बता', 'बता देंगे', 'बता देगा', 'बता देगी', 'बताएंगे', 'बोलेगा', 'बोलेगी', 'बोलेंगे', 'बोला है', 'बोली है', 'कहा है', 'सोच कर', 'सोचकर', 'देखते हैं', 'देखेंगे'] },
+];
+
+/** Naam nahi bola — bole hue matlab se stage ka andaza. Return { name, available, inferred: true } ya null. */
+function inferStage(text, allNames, availableNames) {
+  const low = ' ' + String(text || '').toLowerCase().replace(/[.,!?।"“”]+/g, ' ').replace(/\s+/g, ' ') + ' ';
+  for (const it of INTENTS) {
+    if (!allNames.includes(it.stage)) continue;                       // ye stage config mein hai hi nahi
+    if (it.rom.test(low) || it.hi.some((p) => low.includes(p))) return { name: it.stage, available: availableNames.includes(it.stage), inferred: true };
+  }
+  return null;
+}
 
 /** Bole hue text se kaun sa stage bola gaya: { name, available } ya null.
  *  allNames = config ke saare stage naam (lowercase), availableNames = is lead ke liye (role/flow ke hisaab se) jo allowed hain.
@@ -167,7 +194,7 @@ export function stageFromSpeech(text, allNames, availableNames) {
     consider(n, n);
     (STAGE_ALIASES[n] || []).forEach((a) => consider(n, a));
   });
-  if (!best) return null;
+  if (!best) return inferStage(text, allNames, availableNames);
   return { name: best.name, available: availableNames.includes(best.name) };
 }
 

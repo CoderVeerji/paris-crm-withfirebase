@@ -183,7 +183,7 @@ export default function LeadSheet({ lead: leadIn, onClose, onSaved }) {
     const target = hit || stageObj;
     if (hit && hit.name !== stage) setStage(hit.name);
     // stage bola to hai par is lead (ya is role) ke liye available nahi — chup-chap ignore nahi, saaf bata do
-    if (sp && !sp.available) {
+    if (sp && !sp.available && !sp.inferred) {
       const lbl = (cfg.stages || []).find((s) => String(s.name).toLowerCase() === sp.name)?.name || sp.name;
       setVNote(fill(t('vqStageNA'), { s: lbl, c: target?.label || stage }));
     } else setVNote('');
