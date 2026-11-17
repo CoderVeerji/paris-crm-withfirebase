@@ -9,12 +9,13 @@ import { REPORTS, buildReport, spanDays } from '../lib/reports';
 import { buildDailyLeadsReportHtml } from '../lib/dailyLeadsReport';
 import LeadDistReport from '../components/LeadDistReport';
 import TallyMatch from '../components/TallyMatch';
+import TeamStatusText from '../components/TeamStatusText';
 
 const ICON = {
   leads_created: 'fa-users', leads_worked: 'fa-comments', leads_qualified: 'fa-user-check',
   activity: 'fa-clipboard-list', orders: 'fa-sack-dollar', team_perf: 'fa-ranking-star',
   daily_leads: 'fa-table-list', reinq_archive: 'fa-arrow-rotate-left', pipeline_now: 'fa-diagram-project',
-  lead_dist: 'fa-people-arrows', tally_match: 'fa-scale-balanced',
+  lead_dist: 'fa-people-arrows', tally_match: 'fa-scale-balanced', team_status: 'fa-list-check',
 };
 const addDays = (day, n) => { const d = new Date(`${day}T12:00:00Z`); d.setUTCDate(d.getUTCDate() + n); return d.toISOString().slice(0, 10); };
 
@@ -99,6 +100,7 @@ export default function Reports() {
       </div>
 
       {key === 'lead_dist' && <LeadDistReport />}
+      {key === 'team_status' && <TeamStatusText />}
       {key === 'tally_match' && <TallyMatch />}
 
       {isTool ? null : !isSnapshot ? (

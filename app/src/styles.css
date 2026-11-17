@@ -1371,6 +1371,13 @@ table.mis-t th.mis-th-group { text-align: center; background: color-mix(in srgb,
 /* ---------- Select (components/Select.jsx) — searchable dropdown, native select ki jagah ---------- */
 .ss { display: contents; }
 /* Lead distribution: pending wali rows laal — turant nazar aaye */
+.ts-row { display: flex; align-items: center; flex-wrap: wrap; gap: 8px 12px; margin-bottom: 8px; font-size: 12.5px; color: var(--muted); }
+.ts-row > span { min-width: 112px; font-weight: 600; }
+.ts-out { margin-top: 12px; }
+.ts-box { width: 100%; font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 13px; line-height: 1.55; white-space: pre; overflow: auto; resize: vertical; }
+.ts-btns { display: flex; gap: 8px; margin-top: 8px; flex-wrap: wrap; }
+.ts-btns .btn { flex: 1; min-width: 150px; }
+.btn.btn-wa { background: var(--success); color: #fff; border-color: var(--success); }
 .ld-bad td { background: color-mix(in srgb, var(--danger) 9%, var(--card)); }
 .ld-pend { display: inline-block; min-width: 26px; padding: 2px 9px; border-radius: 999px; background: var(--danger); color: #fff; font-weight: 800; text-align: center; }
 .ld-ok { color: var(--success); font-weight: 700; }

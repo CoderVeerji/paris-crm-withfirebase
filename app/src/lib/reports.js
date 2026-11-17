@@ -23,6 +23,7 @@ export const REPORTS = [
   { key: 'pipeline_now', tk: 'rpPipelineNow', kind: 'snapshot' },
   // 'tool' = apna alag screen/component (date-range + download wala generic flow nahi) — components/LeadDistReport.jsx, TallyMatch.jsx
   { key: 'lead_dist', tk: 'rpLeadDist', kind: 'tool' },
+  { key: 'team_status', tk: 'rpTeamStatus', kind: 'tool' },
   { key: 'tally_match', tk: 'rpTally', kind: 'tool' },
 ];
 
