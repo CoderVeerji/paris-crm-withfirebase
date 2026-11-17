@@ -649,6 +649,46 @@
           "order": "DESCENDING"
         }
       ]
+    },
+    {
+      "collectionGroup": "leads",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "sales_uid",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "sales_open",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "assigned_sales_at",
+          "order": "ASCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "leads",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "ldr_uid",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "sales_status",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "outcome",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "next_followup",
+          "order": "ASCENDING"
+        }
+      ]
     }
   ],
   "fieldOverrides": []
